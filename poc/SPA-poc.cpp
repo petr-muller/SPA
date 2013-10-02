@@ -18,7 +18,7 @@ public:
     std::cout << S->getStmtClass() << " -- ";
     std::cout << S->getStmtClassName();
     if(S->getStmtClass()==60){
-        std::cout << " <" << (static_cast<clang::DeclRefExpr*>(S))->getFoundDecl()->getNameAsString() << ">";
+        std::cout << " <" << (static_cast<clang::DeclRefExpr*>(S))->getFoundDecl()->getQualifiedNameAsString() << ">[" << (static_cast<clang::DeclRefExpr*>(S))->getFoundDecl() << "]";
     }
     std::cout << std::endl;
     return true;
