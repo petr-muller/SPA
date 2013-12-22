@@ -14,7 +14,7 @@ LIBRARYNAME = SPA
 # from the plugin.
 #ifneq ($(REQUIRES_RTTI), 1)
 #ifneq ($(REQUIRES_EH), 1)
-#	EXPORTED_SYMBOL_FILE = $(PROJ_SRC_DIR)/SPA.exports
+	#EXPORTED_SYMBOL_FILE = $(PROJ_SRC_DIR)/SPA.exports
 #endif
 #endif
 
