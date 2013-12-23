@@ -1,5 +1,8 @@
+#define DEBUG(str) std::cout << str << std::endl;
+
 #include "clang/Frontend/FrontendPluginRegistry.h"
 #include "clang/AST/AST.h"
+#include "clang/AST/Stmt.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "llvm/Support/raw_ostream.h"
@@ -20,12 +23,12 @@ namespace {
 class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
     private:
         DiagnosticsEngine &DE;
-        unsigned SPA_error;
+        unsigned SPA_seqwarning;
         unsigned FILE_error;
         NamedDecl *CurrentFunDecl;
-        FunctionWriteTable functionWriteTable;
+        FunctionWriteTable &functionWriteTable;
 
-        bool side_effect_race(Stmt *S){
+        /*bool side_effect_race(Stmt *S){
             std::cout << "TESTING" << std::endl;
             if(S->child_begin()->getStmtClassName()!=std::string("DeclRefExpr")){
 		        return false;
@@ -40,28 +43,34 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
 	        }
 	        NamedDecl *origin_addr = static_cast<clang::DeclRefExpr*>(*(inc->child_begin()))->getFoundDecl();
   	        return target_addr==origin_addr;
-        }
+        }*/
 
     public:
-        SPAVisitor(CompilerInstance &CI) : DE(CI.getDiagnostics()){
-            SPA_error = DE.getCustomDiagID(DiagnosticsEngine::Warning, "Warning: side effect and sequence point related undefined behavior [SPA]");
+        SPAVisitor(CompilerInstance &CI, FunctionWriteTable &functionWriteTable) : DE(CI.getDiagnostics()), functionWriteTable(functionWriteTable){
+            SPA_seqwarning = DE.getCustomDiagID(DiagnosticsEngine::Warning, "Warning: side effect and sequence point related undefined behavior [SPA]");
         }
         bool VisitStmt(Stmt *S){
-            std::cout << S->getStmtClass() << " -- " << S->getStmtClassName() << std::endl;
-            if(S->getStmtClassName()==std::string("BinaryOperator")){
+            /*std::cout << S->getStmtClass() << " -- " << S->getStmtClassName() << std::endl;*/
+            /*if(S->getStmtClassName()==std::string("BinaryOperator")){
                 BinaryOperator *BO = static_cast<BinaryOperator *>(S);
                 if(BO->isAssignmentOp()){
                     if(side_effect_race(S)){
-                        DE.Report(SPA_error);
+                        DE.Report(SPA_seqwarning);
                     }
                 }
+            }*/
+            switch(S->getStmtClass()){
+            case Stmt::BinaryOperatorClass: DEBUG("BinaryOperator"); break;
+            case Stmt::UnaryOperatorClass: DEBUG("UnaryOperator"); break;
+            case Stmt::CallExprClass: DEBUG("CallExpr")
+            default: DEBUG("Something else"); break;    
             }
             return true;
         }
 
         bool VisitNamedDecl(NamedDecl *D) {
             //For debugging, dumping the AST nodes will show which nodes are already being visited.
-            std::cout << "========" << D->getKind() << " -- " << D->getDeclKindName() << " << " << D->getNameAsString() <<  " >>" << std::endl;
+            /*std::cout << "========" << D->getKind() << " -- " << D->getDeclKindName() << " << " << D->getNameAsString() <<  " >>" << std::endl;*/
             if(D->isFunctionOrFunctionTemplate()){
                 this->CurrentFunDecl = D;
                 functionWriteTable.addFunction(D);
@@ -74,14 +83,16 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
 class SPAConsumer : public clang::ASTConsumer {
     private:
         //A RecursiveASTVisitor implementation.
+        FunctionWriteTable functionWriteTable;
         SPAVisitor Visitor;
 
     public:
-        SPAConsumer(CompilerInstance &CI) : Visitor(SPAVisitor(CI)){}
+        SPAConsumer(CompilerInstance &CI) : Visitor(SPAVisitor(CI, functionWriteTable)){}
 
         virtual void HandleTranslationUnit(clang::ASTContext &Context){
             //Visit all nodes in the AST
             Visitor.TraverseDecl(Context.getTranslationUnitDecl());
+            functionWriteTable.dump();
         }
 };
 
