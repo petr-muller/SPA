@@ -105,15 +105,15 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
                 this->parentMap = new ParentMap(S);
             }
             if(S->getStmtClass() == Stmt::DeclRefExprClass){
-                #ifdef DBG
-                    DEBUG("DeclRefExpr: " << static_cast<DeclRefExpr*>(S)->getDecl()->getNameAsString());
-                    Stmt *parent = this->parentMap->getParent(S);
-                    lvalueTable.set(S,static_cast<DeclRefExpr*>(S),false);
-                    while(parent != 0){
-                        DEBUG("> " << parent->getStmtClassName());
-                        parent = this->parentMap->getParent(parent);
-                    }
-                #endif
+                DEBUG("DeclRefExpr: " << static_cast<DeclRefExpr*>(S)->getDecl()->getNameAsString());
+                Stmt *parent = S;
+                Stmt *tmp = S;
+                while(parent != 0){
+                    DEBUG("> " << parent->getStmtClassName());
+                    lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false);
+                    tmp = parent;
+                    parent = this->parentMap->getParent(parent);
+                }
                 //cascadeLvalue(S);
             }
             return true;

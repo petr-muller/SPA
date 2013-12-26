@@ -17,12 +17,14 @@ bool LvalueTable::set(clang::Stmt *S, clang::DeclRefExpr *D, bool sideEffect){
 }
 
 void LvalueTable::dump(){
-    DEBUG("--------------- Lvalue Table dump ---------------");
-    for(std::map<clang::Stmt*, std::map<clang::NamedDecl*, bool> >::iterator i = this->table.begin(); i != this->table.end(); ++i){
-        DEBUG(i->first << " (" << i->first->getStmtClassName() << ")");
-        for(std::map<clang::NamedDecl*, bool>::iterator j = i->second.begin(); j != i->second.end(); ++j){
-            DEBUG("> " << j->first->getNameAsString() << " (" << j->first << ")" << (j->second ? " - SIDE EFFECT" : ""));
+    #ifdef DEBUG
+        DEBUG("--------------- Lvalue Table dump ---------------");
+        for(std::map<clang::Stmt*, std::map<clang::NamedDecl*, bool> >::iterator i = this->table.begin(); i != this->table.end(); ++i){
+            DEBUG(i->first << " (" << i->first->getStmtClassName() << ")");
+            for(std::map<clang::NamedDecl*, bool>::iterator j = i->second.begin(); j != i->second.end(); ++j){
+                DEBUG("> " << j->first->getNameAsString() << " (" << j->first << ")" << (j->second ? " - SIDE EFFECT" : ""));
+            }
         }
-    }
-    DEBUG("-------------------------------------------------");
+        DEBUG("-------------------------------------------------");
+    #endif
 }
