@@ -1,9 +1,14 @@
-#define DEBUG(str) std::cout << str << std::endl;
+#define DBG
+#ifdef DBG
+    #define DEBUG(str) std::cout << str << std::endl;
+#endif
 
 #include "clang/Frontend/FrontendPluginRegistry.h"
 #include "clang/AST/AST.h"
 #include "clang/AST/Stmt.h"
 #include "clang/AST/ASTConsumer.h"
+#include "clang/AST/ASTContext.h"
+#include "clang/AST/ParentMap.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "llvm/Support/raw_ostream.h"
 #include "clang/AST/RecursiveASTVisitor.h"
@@ -11,7 +16,7 @@
 #include <string>
 #include <fstream>
 
-#include "FunctionWriteTable.cpp"
+#include "LvalueTable.cpp"
 
 #define FILENAME "SPA_constraints.txt"
 
@@ -26,7 +31,9 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
         unsigned SPA_seqwarning;
         unsigned FILE_error;
         NamedDecl *CurrentFunDecl;
-        FunctionWriteTable &functionWriteTable;
+        LvalueTable &lvalueTable;
+        ParentMap *parentMap;
+        bool updateParentMap;
 
         /*bool side_effect_race(Stmt *S){
             std::cout << "TESTING" << std::endl;
@@ -46,9 +53,15 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
         }*/
 
     public:
-        SPAVisitor(CompilerInstance &CI, FunctionWriteTable &functionWriteTable) : DE(CI.getDiagnostics()), functionWriteTable(functionWriteTable){
+        SPAVisitor(CompilerInstance &CI, LvalueTable &lvalueTable) : DE(CI.getDiagnostics()), lvalueTable(lvalueTable), parentMap(0), updateParentMap(false)/*, parentMap(static_cast<Decl*>(CI.getASTContext().getTranslationUnitDecl()))*/{
             SPA_seqwarning = DE.getCustomDiagID(DiagnosticsEngine::Warning, "Warning: side effect and sequence point related undefined behavior [SPA]");
         }
+        ~SPAVisitor(){
+            if(this->parentMap != 0){
+                delete this->parentMap;
+            }
+        }
+
         bool VisitStmt(Stmt *S){
             /*std::cout << S->getStmtClass() << " -- " << S->getStmtClassName() << std::endl;*/
             /*if(S->getStmtClassName()==std::string("BinaryOperator")){
@@ -59,11 +72,49 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
                     }
                 }
             }*/
+            //Function write table
+            /*BinaryOperator *BO;
+            UnaryOperator *UO;
+            CallExpr *CE;
             switch(S->getStmtClass()){
-            case Stmt::BinaryOperatorClass: DEBUG("BinaryOperator"); break;
-            case Stmt::UnaryOperatorClass: DEBUG("UnaryOperator"); break;
-            case Stmt::CallExprClass: DEBUG("CallExpr")
-            default: DEBUG("Something else"); break;    
+            case Stmt::BinaryOperatorClass:
+                DEBUG("BinaryOperator");
+                BO = static_cast<BinaryOperator*>(S);
+                if(BO->isAssignmentOp() && (*(BO->child_begin()))->getStmtClass()==Expr::DeclRefExprClass){
+                    lvalueTable.add(CurrentFunDecl,static_cast<DeclRefExpr*>(*(BO->child_begin())));
+                }
+            break;
+            case Stmt::UnaryOperatorClass:
+                DEBUG("UnaryOperator");
+            break;
+            case Stmt::CallExprClass:
+                DEBUG("CallExpr");
+            break;
+            case Stmt::ArraySubscriptExprClass:
+                DEBUG("ArraySubscriptExpr");
+            break;
+            default: DEBUG("Something else");
+            break;    
+            }*/
+            //change the root node if processing new function
+            if(this->updateParentMap){
+                this->updateParentMap = false;
+                if(this->parentMap){
+                    delete this->parentMap;
+                }
+                this->parentMap = new ParentMap(S);
+            }
+            if(S->getStmtClass() == Stmt::DeclRefExprClass){
+                #ifdef DBG
+                    DEBUG("DeclRefExpr: " << static_cast<DeclRefExpr*>(S)->getDecl()->getNameAsString());
+                    Stmt *parent = this->parentMap->getParent(S);
+                    lvalueTable.set(S,static_cast<DeclRefExpr*>(S),false);
+                    while(parent != 0){
+                        DEBUG("> " << parent->getStmtClassName());
+                        parent = this->parentMap->getParent(parent);
+                    }
+                #endif
+                //cascadeLvalue(S);
             }
             return true;
         }
@@ -73,7 +124,7 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
             /*std::cout << "========" << D->getKind() << " -- " << D->getDeclKindName() << " << " << D->getNameAsString() <<  " >>" << std::endl;*/
             if(D->isFunctionOrFunctionTemplate()){
                 this->CurrentFunDecl = D;
-                functionWriteTable.addFunction(D);
+                this->updateParentMap = true;
             }
             return true;
         }
@@ -83,16 +134,16 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
 class SPAConsumer : public clang::ASTConsumer {
     private:
         //A RecursiveASTVisitor implementation.
-        FunctionWriteTable functionWriteTable;
+        LvalueTable lvalueTable;
         SPAVisitor Visitor;
 
     public:
-        SPAConsumer(CompilerInstance &CI) : Visitor(SPAVisitor(CI, functionWriteTable)){}
+        SPAConsumer(CompilerInstance &CI) : Visitor(SPAVisitor(CI, lvalueTable)){}
 
         virtual void HandleTranslationUnit(clang::ASTContext &Context){
             //Visit all nodes in the AST
             Visitor.TraverseDecl(Context.getTranslationUnitDecl());
-            functionWriteTable.dump();
+            lvalueTable.dump();
         }
 };
 
