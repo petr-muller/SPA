@@ -17,7 +17,7 @@ bool LvalueTable::set(clang::Stmt *S, clang::DeclRefExpr *D, bool sideEffect){
 }
 
 void LvalueTable::dump(){
-    #ifdef DEBUG
+    #ifdef DBG
         DEBUG("--------------- Lvalue Table dump ---------------");
         for(std::map<clang::Stmt*, std::map<clang::NamedDecl*, bool> >::iterator i = this->table.begin(); i != this->table.end(); ++i){
             DEBUG(i->first << " (" << i->first->getStmtClassName() << ")");

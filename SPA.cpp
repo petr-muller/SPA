@@ -34,6 +34,32 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
         LvalueTable &lvalueTable;
         ParentMap *parentMap;
         bool updateParentMap;
+        bool resolveLvalue(Stmt *tmp, Stmt *parent, DeclRefExpr *S){
+            switch(parent->getStmtClass()){
+            case Stmt::DeclRefExprClass:
+                //lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false);
+                return true;
+            break;
+            case Stmt::ImplicitCastExprClass:
+                //lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false);
+                return true;
+            break;
+            case Stmt::CallExprClass:
+                if(tmp != *(parent->child_begin()/* && tmp->getType()->isPointerType()*/)){
+                    lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),true);
+                }
+            break;
+            case Stmt::UnaryOperatorClass:
+                if(static_cast<UnaryOperator*>(parent)->getOpcode() == UO_AddrOf){
+                    lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false);
+                }
+            break;
+            default:
+                return false;
+            break;    
+            }
+            return true;
+        }
 
         /*bool side_effect_race(Stmt *S){
             std::cout << "TESTING" << std::endl;
@@ -110,7 +136,9 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
                 Stmt *tmp = S;
                 while(parent != 0){
                     DEBUG("> " << parent->getStmtClassName());
-                    lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false);
+                    if(!this->resolveLvalue(tmp,parent,static_cast<DeclRefExpr*>(S))){
+                        break;
+                    }
                     tmp = parent;
                     parent = this->parentMap->getParent(parent);
                 }
