@@ -1,0 +1,188 @@
+%=========================================================================
+% (c) Michal Bidlo, Bohuslav Křena, 2008
+
+\chapter{Introduction}
+The C programming language is a very powerful and effective way of writing programs. Arguably the most important reason is that it is almost as low-level as a structured programming language can be. This leads to great freedom of choice and potentially very effective resulting program, however with this freedom comes a programmer's responsibility to either evade some language constructs or to cope with possible unpredictable results -- the undefined behavior in C.
+
+The most important document to study regarding the C language is its most recent standard: ISO/IEC 9899:2011\cite{C11} , informally known as \emph{ISO C11}. (For the purpose of this paper, I am gonna cite its last free and public draft available\cite{WG14N1570})
+
+%%%%%%%%%%%%
+\section{Undefined behavior}
+ISO C11 specifies how the implementation is expected to work and when there are no expectations regarding the implementation's behavior at all. Multiple terms are used to describe similar but different requirements on the implementation:\cite{WG14N1570}
+\begin{itemize}
+    \item \emph{Behavior} -- external  appearance or action
+    \item \emph{Unspecified behavior} -- use of an unspecified value, or other behavior where this International Standard provides two or more possibilities and imposes no further requirements on which is chosen in any instance
+    \item \emph{Implementation-defined behavior} -- unspecified behavior where each implementation documents how the choice is made
+    \item \emph{Locale-specific behavior} -- behavior that depends on local conventions of nationality, culture, and language that each implementation documents
+    \item \emph{Undefined behavior} -- behavior, upon use of a nonportable or erroneous program construct or of erroneous data, for which this International Standard imposes no requirements
+\end{itemize}
+
+Bear in mind that undefined behavior allows \emph{any} behavior -- meaning not only the returned value is not specified but also that the implementation is allowed to do \emph{anything} -- the program might run ``just fine'' (as the programmer expected) or the program might erase your hard disk and it would be perfectly legal according to the standard.
+
+%%%%%%%%%%%%
+\section{Side effect}
+``Accessing a volatile object, modifying an object, modifying a file, or calling a function that does any of those operations are all side effects, which are changes in the state of the execution environment. Evaluation of an expression in general includes both value computations and initiation of side effects. Value computation for an lvalue expression includes determining the identity of the designated object.''\cite{WG14N1570}
+
+Informally said, a side effect is usually modifying a memory during evaluation of an expression -- for example \verb|i++| is an expression whose \emph{return value} is the value of \verb|i| before evaluation \emph{and the value of }\verb|i|\emph{ is incremented by 1} -- this is the side effect, the expression evaluation accesed the memory addressed by \verb|i| and modified its value.
+
+%%%%%%%%%%%%
+\section{Sequence point}
+``Sequenced before is an asymmetric, transitive, pair-wise relation between evaluations
+executed by a single thread, which induces a partial order among those evaluations.
+Given any two evaluations A and B, if A is sequenced before B, then the execution of A
+shall precede the execution of B. (Conversely, if A is sequenced before B, then B is
+sequenced after A.) If A is not sequenced before or after B, then A and B are
+unsequenced. Evaluations A and B are indeterminately sequenced when A is sequenced
+either before or after B, but it is unspecified which. The presence of a sequence point
+ between the evaluation of expressions A and B implies that every value computation and
+side effect associated with A is sequenced before every value computation and side effect
+associated with B.''\cite{WG14N1570}
+
+This means that the evaluation order of expressions may and may not be specified and if it's not, the implementation may and may not be required to specify it and do it consistently and predictably. ISO C11, in other words, states that an expression A must be evaluated (or at least the external behavior must appear like it is evaluated -- ``an actual implementation need not evaluate part of an expression if it can deduce that its value is not used and that no needed side effects are produced''\cite{WG14N1570}) before an expression B when it is on the left side of a sequence point that is between A and B. Otherwise A and B may either be evaluated in an unspecified order or they can even \emph{not be evaluated in any order} -- the evaluation of A may start, then be interrupted, B may be evaluated and A evaluation may be completed then, for example.
+
+ISO C11 enumerates the sequence points as follows:\cite{WG14N1570}
+\begin{itemize}
+    \item Between the evaluations of the function designator and actual arguments in a function call and the actual call.
+    \item Between the evaluations of the first and second operands of the following operators: logical AND $\&\&$ ; logical OR $\|$ ; comma , .
+    \item Between the evaluations of the first operand of the conditional ? : operator and whichever of the second and third operands is evaluated.
+    \item The end of a full declarator
+    \item Between the evaluation of a full expression and the next full expression to be evaluated. The following are full expressions: an initializer that is not part of a compound literal; the expression in an expression statement; the
+controlling expression of a selection statement (if or switch); the controlling expression of a while or do statement; each of the (optional) expressions of a for statement; the (optional) expression in a return statement.
+    \item Immediately before a library function returns.
+    \item After the actions associated with each formatted input/output function conversion specifier.
+    \item Immediately before and immediately after each call to a comparison function, and also between any call to a comparison function and any movement of the objects passed as arguments to that call.
+\end{itemize}
+
+%%%%%%%%%%%%
+\section{Consequences}
+Undefined behavior occurs when ``a side effect on a scalar object is unsequenced relative to either a different side effect on the same scalar object or a value computation using the value of the same scalar object''.\cite{WG14N1570} That means whenever there are two expressions that are unsequenced and have a side effect on the same object (meaning its value is to be modified, but in any order and possibly not even in any order), the undefined behavior occurs meaning not only the value of a given object is undefined but the whole program might do absolutely anything -- of course most of the implementations will do something ``reasonable'', but they are not required to.
+
+This kind of undefined behavior appears not to be very dangerous on sight -- most of the programmers would either expect this expression to be well-defined or think the value of \verb|i| would either be \verb|i| or \verb|i+1|.
+However, if you write \verb|i = i++;| in your program and run it, you might get your hard disk erased just as well.
+
+Another reason why this is dangerous is that most of the implementations will behave ``reasonably'' and do one of the things a programmer would expect. It is therefore hard to reveal this kind of errorneous C constructs and it might be present in a program for many years until the implementation behavior changes and the program, too, suddenly changes its behavior for no obvious reason.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Existing solutions and the goal of this work}
+As I brightly described in the previous chapter, this kind of undefined behavior is potentially very dangerous and hard to detect before the real problem occurs. Some implementations have very basic warnings for a programmer at compilation time, but most of them fail in any non-trivial case, for example using a function with a side effect or accessing the object via a pointer rather than directly. I will therefore try to compare some of these implementations, describe why their solutions are not suitable and briefly describe my concept of an automated tool for detection of the previously described behavior.
+%%%%%%%%%%%%
+\section{Existing solutions}
+Among the existing solutions, most noticeable are the ones included in widely used compilers, Clang and GCC.
+\subsection{GCC}
+GCC's \verb|-Wunsequenced| modifier is able to detect some basic occurences of side-effect related undefined behavior, but fails in cases as basic as using a function with side effect or side effect on a memory accessed via pointer. It's not easy to use GCC as an API or write plugins for it as GCC is not as modular as Clang.\cite{ClangComparison}
+\subsection{Clang}
+Clang is an alternative to GCC and is usually considered to be better for diagnostic purposes and for understandable warnings. It fails in the same basic cases as GCC, Clang, however, offers a reasonable environment for further development and will be used for a part of my work.
+%%%%%%%%%%%%
+\section{Sequence-point analyzer goal}
+These solutions are not sufficient as they usually only catch undefined behavior in example and test source codes, which is so apparent that most programmers wouldn't do such a mistake. Most of these errors occur while dealing with functions that have side effects, accessing a variable via a pointer, using array indexation etc.
+There are multiple theoretical works regarding this topic, none of them, however, deals satisfyingly with pointers (where alias analysis is needed)\cite{AliasWiki} and functions.
+
+As there is no suitable existing tool, my work's goal is to \emph{implement a static checker for side-effect and sequence-point related undefined behavior, including access via pointers and functions}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Sequence-point analyzer}
+The first step in order to write such a tool is building the abstract syntax tree or accesing an existing one. The expressions can then be divided into sequence points and it's also possible to determine which subexpression can issue a side effect and to which variable. Let's use an example program 1 to demonstrate how it can work:
+\section{Division into sequence points}
+This is the AST dump from Clang:
+
+\small{
+\begin{verbatim}
+TranslationUnitDecl 0x29bdec0 <<invalid sloc>>
+|-TypedefDecl 0x29be3c0 <<invalid sloc>> __int128_t '__int128'
+|-TypedefDecl 0x29be420 <<invalid sloc>> __uint128_t 'unsigned __int128'
+|-TypedefDecl 0x29be770 <<invalid sloc>> __builtin_va_list '__va_list_tag [1]'
+`-FunctionDecl 0x29be880 </examples/test1.c:1:1, line:5:1> main 'int (void)'
+  `-CompoundStmt 0x29beb18 <line:1:15, line:5:1>
+    |-DeclStmt 0x29bea08 <line:2:2, col:11>
+    | `-VarDecl 0x29be990 <col:2, col:10> i 'int'
+    |   `-IntegerLiteral 0x29be9e8 <col:10> 'int' 1
+    |-BinaryOperator 0x29bea90 <line:3:2, col:7> 'int' '='
+    | |-DeclRefExpr 0x29bea20 <col:2> 'int' lvalue Var 0x29be990 'i' 'int'
+    | `-UnaryOperator 0x29bea70 <col:6, col:7> 'int' postfix '++'
+    |   `-DeclRefExpr 0x29bea48 <col:6> 'int' lvalue Var 0x29be990 'i' 'int'
+    `-ReturnStmt 0x29beaf8 <line:4:2, col:9>
+      `-ImplicitCastExpr 0x29beae0 <col:9> 'int' <LValueToRValue>
+        `-DeclRefExpr 0x29beab8 <col:9> 'int' lvalue Var 0x29be990 'i' 'int'
+\end{verbatim}}
+
+And this is its graphical representation (after omitting the typedefs from the beginning):
+
+\begin{figure}[H]
+  \caption{Example 1 AST graphical representation}
+  \centering
+    \includegraphics[width=1\textwidth]{fig/example1G.pdf}
+\end{figure}
+
+As we can see, we can, by definition of individual AST nodes, determine what (if any) child node is the side effect going to be applied to. Then when we go several levels up from node A towards the root and stop in node B, we can conclude that the whole subtree of B in which the node A is still has the side effect on the same memory address. We therefore can start from the DeclRefExpr nodes and while traversing the tree up to the root, decide whether the current node implies an side effect on a given DeclRefExpr.
+
+%%%%%%%%%%%%
+\section{L-value scope}
+Some expressions keep an address of the given operand, meaning it can be used later in some parent node as an lvalue and, e.g., be assigned to.
+
+\begin{verbatim}
+int main(void){
+    int i = 2;
+    int *j = &i;
+    int a = 3;
+    int *b = &a;
+    *(b!=0?&i:&i) = 42;
+    return *(j);
+}
+
+\end{verbatim}
+
+Pretty nonsense, but legal. Returns 42. Some other expressions, however, get rid of the operand address irreversibly and we can be sure it will never be used as an l-value until its next occurence. An example of this is the \verb|b| variable in the conditional operator from the code above: it can never be used as an l-value in the whole subtree with the assignment it appears in as the conditional operator just uses it and throws it away.
+
+%%%%%%%%%%%%
+\section{Node tagging}
+From this, we can conclude that every node can be tagged either as "implying a side effect", "not implying anything" or "making side effect impossible" on certain memory place given by certain DeclRefExpr. We can do this for each DeclRefExpr. The picture from the above would then be tagged as follows:
+%TODO
+
+%%%%%%%%%%%%
+\section{Aliasing}
+So far, we can determine \verb|i = i++| leads certainly to undefined behavior, but we can not go so far in this simple case:
+
+\begin{verbatim}
+int main(){
+	int i = 0;
+	int *j = &i;
+	i = (*j)++;
+    return i;
+}
+\end{verbatim}
+
+\verb|*j| may and may not alias with \verb|i|. After the tagging, I will therefore need to be able to determine whether two memory spaces alias.
+
+This can't, however, be done in Clang on the AST level (as long as I am not willing to implement my own alias analysis, which would be useless). Neither is it possible to analyze AST using tools conventionally used for alias analysis. This said, the goal of the first part of my project is to merely generate a set of constraints saying under what conditions the undefined behavior may occur. For this example, the goal is to generate a rule saying "On the row 4, there is undefined behavior \emph{if} \verb|*j| aliases with \verb|i|". This can be checked later on either in LLVM or using some external alias analysis.
+
+%%%%%%%%%%%%
+\section{Functions}
+I do not, however, know of any alias analysis capable of determining whether two objects in different functions alias.
+
+\begin{verbatim}
+int f(int *a){
+    (*a)++;
+    return *a;
+}
+
+int g(int *b){
+    (*b) *= 2;
+    return *b;
+}
+
+int main(){
+    int i = 1;
+    i = f(&i) + g(&i);
+    return i;
+}
+\end{verbatim}
+
+In this case, the most efficient and usable approach is probably just stating that if the function \emph{can} use its argument as an l-value (meaning it has the object pointer or some object it can get it from as an argument), I will assume it \emph{does}.
+
+%%%%%%%%%%%%
+\section{Tools used}
+\subsection{Clang}
+Clang seems to be suitable platform for my devepopment as it's easily modifiable and offers easy acces to the AST.\cite{ClangAST}
+\subsection{LLVM}
+LLVM is a compiler that translates a program in the LLVM notation (an assembler-like notation with capability of implementing multiple higl-level languages)\cite{LLVMnotation} into an executable. Clang is LLVM's frontend so their cooperation shouldn't pose a problem.
+

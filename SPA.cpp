@@ -27,6 +27,8 @@ namespace {
 //visitor
 class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
     private:
+        enum lvalueResult {None, Use, SideEffect};
+
         DiagnosticsEngine &DE;
         unsigned SPA_seqwarning;
         unsigned FILE_error;
@@ -34,31 +36,58 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
         LvalueTable &lvalueTable;
         ParentMap *parentMap;
         bool updateParentMap;
-        bool resolveLvalue(Stmt *tmp, Stmt *parent, DeclRefExpr *S){
+        enum lvalueResult resolveLvalue(Stmt *tmp, Stmt *parent, DeclRefExpr *S, enum lvalueResult sideEffect){
+            if(sideEffect==SideEffect){
+                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),true);
+                return SideEffect;
+            }
             switch(parent->getStmtClass()){
             case Stmt::DeclRefExprClass:
-                //lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false);
-                return true;
+                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false);
+                return Use;
             break;
             case Stmt::ImplicitCastExprClass:
-                //lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false);
-                return true;
+                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false);
+                return Use;
             break;
             case Stmt::CallExprClass:
                 if(tmp != *(parent->child_begin()/* && tmp->getType()->isPointerType()*/)){
                     lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),true);
+                    return SideEffect;
                 }
             break;
             case Stmt::UnaryOperatorClass:
-                if(static_cast<UnaryOperator*>(parent)->getOpcode() == UO_AddrOf){
-                    lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false);
+                if(static_cast<UnaryOperator*>(parent)->isIncrementDecrementOp()){
+                    lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),true);
+                    return SideEffect;
                 }
+                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false);
+                return Use;
+            break;
+            case Stmt::BinaryOperatorClass:
+                if(tmp == *(parent->child_begin())){
+                    lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),true);
+                    return SideEffect;
+                }
+                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false);
+                return Use;
+            break;
+            case Stmt::CompoundAssignOperatorClass:
+                if(tmp == *(parent->child_begin())){
+                    lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),true);
+                    return SideEffect;
+                }
+                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false);
+                return Use;
             break;
             default:
-                return false;
             break;    
             }
-            return true;
+            if(sideEffect == Use){
+                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false);
+                return Use;
+            }
+            return None;
         }
 
         /*bool side_effect_race(Stmt *S){
@@ -134,15 +163,15 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
                 DEBUG("DeclRefExpr: " << static_cast<DeclRefExpr*>(S)->getDecl()->getNameAsString());
                 Stmt *parent = S;
                 Stmt *tmp = S;
+                enum lvalueResult sideEffect = None;
                 while(parent != 0){
                     DEBUG("> " << parent->getStmtClassName());
-                    if(!this->resolveLvalue(tmp,parent,static_cast<DeclRefExpr*>(S))){
+                    if((sideEffect=this->resolveLvalue(tmp,parent,static_cast<DeclRefExpr*>(S),sideEffect))==None){
                         break;
                     }
                     tmp = parent;
                     parent = this->parentMap->getParent(parent);
                 }
-                //cascadeLvalue(S);
             }
             return true;
         }
