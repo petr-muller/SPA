@@ -63,6 +63,113 @@ However, if you write \verb|i = i++;| in your program and run it, you might get 
 Another reason why this is dangerous is that most of the implementations will behave ``reasonably'' and do one of the things a programmer would expect. It is therefore hard to reveal this kind of errorneous C constructs and it might be present in a program for many years until the implementation behavior changes and the program, too, suddenly changes its behavior for no obvious reason.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Examples}
+Some examples (and test cases) follow:
+
+\emph{Example 1:}
+\begin{lstlisting}
+int main(void){
+	int i = 1;
+    //assignment order is undefined
+	i = i++;
+	return i;
+}
+\end{lstlisting}
+
+\emph{Example 2:}
+\begin{lstlisting}
+int main(){
+	int i = 0;
+	int *j = &i;
+    //assignment order is undefined
+	i = (*j)++;
+    return i;
+}
+
+\end{lstlisting}
+
+\emph{Example 3:}
+\begin{lstlisting}
+int f(int *a){
+    (*a)++;
+    return *a;
+}
+
+int g(int *b){
+    (*b) *= 2;
+    return *b;
+}
+
+int main(){
+    int i = 1;
+    //function calling order is undefined
+    i = f(&i) + g(&i);
+    return i;
+}
+\end{lstlisting}
+
+\emph{Example 4:}
+\begin{lstlisting}
+int a(int *a){
+    (*a)++;
+    return *a;
+}
+
+int b(int *b){
+    (*b) *= 2;
+    return *b;
+}
+
+int f(int a, int b){
+    return a+b;
+}
+
+int main(void){
+    int i = 1;
+    //This is NOT a "comma OPERATOR",therefore
+    //evaluation order of f arguments is unspecified
+    i = f(a(&i), b(&i));
+    return i;
+}
+\end{lstlisting}
+
+\emph{Example 5:}
+\begin{lstlisting}
+int main(void){
+    char arr[42];
+    int i = 0;
+    //The index is always the same, however, the value
+    //stored may and may not be incremented
+    arr[i++] = i;
+    return arr[i-1];
+}
+\end{lstlisting}
+
+\emph{Example 6:}
+\begin{lstlisting}
+int main(void){
+    char arr[42];
+    int i = 0;
+    //The value stored is always the same, however, the index
+    //may and may not be incremented before the array subscription
+    arr[i] = i++;
+    return arr[i-1];
+}
+\end{lstlisting}
+
+\emph{Example 7:}
+\begin{lstlisting}
+int main(void){
+    int j;
+    int i = 0;
+    //The sum is expectable to always be the same, however, the behavior
+    //is undefined meaning this can lead to absolutely random results
+    j = i++ + ++i;
+}
+\end{lstlisting}
+
+These are all examples of not only undefined result of the expression (as stated in comments, this is the most expectable behavior of most of the implementations), but of \emph{undefined behavior} (because the memory is modified more than once) where the implementation is not required to do anything particular.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Existing solutions and the goal of this work}
 As I brightly described in the previous chapter, this kind of undefined behavior is potentially very dangerous and hard to detect before the real problem occurs. Some implementations have very basic warnings for a programmer at compilation time, but most of them fail in any non-trivial case, for example using a function with a side effect or accessing the object via a pointer rather than directly. I will therefore try to compare some of these implementations, describe why their solutions are not suitable and briefly describe my concept of an automated tool for detection of the previously described behavior.
 %%%%%%%%%%%%
@@ -86,7 +193,7 @@ The first step in order to write such a tool is building the abstract syntax tre
 This is the AST dump from Clang:
 
 \small{
-\begin{verbatim}
+\begin{lstlisting}
 TranslationUnitDecl 0x29bdec0 <<invalid sloc>>
 |-TypedefDecl 0x29be3c0 <<invalid sloc>> __int128_t '__int128'
 |-TypedefDecl 0x29be420 <<invalid sloc>> __uint128_t 'unsigned __int128'
@@ -103,7 +210,7 @@ TranslationUnitDecl 0x29bdec0 <<invalid sloc>>
     `-ReturnStmt 0x29beaf8 <line:4:2, col:9>
       `-ImplicitCastExpr 0x29beae0 <col:9> 'int' <LValueToRValue>
         `-DeclRefExpr 0x29beab8 <col:9> 'int' lvalue Var 0x29be990 'i' 'int'
-\end{verbatim}}
+\end{lstlisting}}
 
 And this is its graphical representation (after omitting the typedefs from the beginning):
 
@@ -113,13 +220,13 @@ And this is its graphical representation (after omitting the typedefs from the b
     \includegraphics[width=1\textwidth]{fig/example1G.pdf}
 \end{figure}
 
-As we can see, we can, by definition of individual AST nodes, determine what (if any) child node is the side effect going to be applied to. Then when we go several levels up from node A towards the root and stop in node B, we can conclude that the whole subtree of B in which the node A is still has the side effect on the same memory address. We therefore can start from the DeclRefExpr nodes and while traversing the tree up to the root, decide whether the current node implies an side effect on a given DeclRefExpr.
+As we can see, we can, by definition of individual AST nodes, determine what (if any) child node is the side effect going to be applied to. Then when we go several levels up from node A towards the root and stop in node B, we can conclude that the whole subtree of B in which the node A is still has the side effect on the same memory address. We therefore can start from the DeclRefExpr nodes and while traversing the tree up to the root, decide whether the current node implies a side effect on a given DeclRefExpr.
 
 %%%%%%%%%%%%
 \section{L-value scope}
 Some expressions keep an address of the given operand, meaning it can be used later in some parent node as an lvalue and, e.g., be assigned to.
 
-\begin{verbatim}
+\begin{lstlisting}
 int main(void){
     int i = 2;
     int *j = &i;
@@ -129,27 +236,34 @@ int main(void){
     return *(j);
 }
 
-\end{verbatim}
+\end{lstlisting}
 
 Pretty nonsense, but legal. Returns 42. Some other expressions, however, get rid of the operand address irreversibly and we can be sure it will never be used as an l-value until its next occurence. An example of this is the \verb|b| variable in the conditional operator from the code above: it can never be used as an l-value in the whole subtree with the assignment it appears in as the conditional operator just uses it and throws it away.
 
 %%%%%%%%%%%%
 \section{Node tagging}
 From this, we can conclude that every node can be tagged either as "implying a side effect", "not implying anything" or "making side effect impossible" on certain memory place given by certain DeclRefExpr. We can do this for each DeclRefExpr. The picture from the above would then be tagged as follows:
-%TODO
+
+\begin{figure}[H]
+  \caption{Example 1 AST graphical representation}
+  \centering
+    \includegraphics[width=0.6\textwidth]{fig/example1G-tagged.pdf}
+\end{figure}
+
+We began tagging from the left DeclRefExpr. It surely can be used as an l-value but the expression itself implies no side effect, hence the blue tag ("not implying anything"). We went towards the root and as we passed the \verb|BinaryExpression (=)|, we mark it as an expression implying a side effect on \verb|i| (red tag) as it modifies the memory contents of \verb|i|. We continued to the top implicitly marking all the parent nodes as having a side effect on \verb|i|. Then we can do the same for the right DeclRefExpr and as we see two red tags of the same variable, we can say we found an undefined behavior.
 
 %%%%%%%%%%%%
 \section{Aliasing}
 So far, we can determine \verb|i = i++| leads certainly to undefined behavior, but we can not go so far in this simple case:
 
-\begin{verbatim}
+\begin{lstlisting}
 int main(){
 	int i = 0;
 	int *j = &i;
 	i = (*j)++;
     return i;
 }
-\end{verbatim}
+\end{lstlisting}
 
 \verb|*j| may and may not alias with \verb|i|. After the tagging, I will therefore need to be able to determine whether two memory spaces alias.
 
@@ -159,7 +273,7 @@ This can't, however, be done in Clang on the AST level (as long as I am not will
 \section{Functions}
 I do not, however, know of any alias analysis capable of determining whether two objects in different functions alias.
 
-\begin{verbatim}
+\begin{lstlisting}
 int f(int *a){
     (*a)++;
     return *a;
@@ -175,14 +289,38 @@ int main(){
     i = f(&i) + g(&i);
     return i;
 }
-\end{verbatim}
+\end{lstlisting}
 
 In this case, the most efficient and usable approach is probably just stating that if the function \emph{can} use its argument as an l-value (meaning it has the object pointer or some object it can get it from as an argument), I will assume it \emph{does}.
 
 %%%%%%%%%%%%
-\section{Tools used}
-\subsection{Clang}
-Clang seems to be suitable platform for my devepopment as it's easily modifiable and offers easy acces to the AST.\cite{ClangAST}
-\subsection{LLVM}
-LLVM is a compiler that translates a program in the LLVM notation (an assembler-like notation with capability of implementing multiple higl-level languages)\cite{LLVMnotation} into an executable. Clang is LLVM's frontend so their cooperation shouldn't pose a problem.
+\section{Output format}
+For sake of portability, the output of the first (Clang) phase won't be forwarded directly to LLVM (which is probably the tool that will be used for alias analysis), but to standard output using a marshalling algorithm. The output must contain the following information:
+
+\begin{itemize}
+\item Row of the source file
+\item Function in which the variables are to be checked for aliasing
+\item Variable to be checked; if it aliases with the second variable, undefined behavior occurs
+\item Variable 2
+\end{itemize}
+
+I am going to use the JSON representation; the output should then look like this:
+
+\begin{lstlisting}
+{output:[
+    {function:"f",
+    constraints:[
+                    {42,"i","*j"},
+                    {108,"i","i"}
+                ]
+    },
+    {function:"g",
+    constraints:[
+                    {112,"a","**b"}
+                ]
+    }
+]}
+\end{lstlisting}
+
+This output can then be used by any external alias analysis.
 

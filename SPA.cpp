@@ -28,7 +28,7 @@ namespace {
 class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
     private:
         enum lvalueResult {None, Use, SideEffect};
-
+        int lvaluelvl;
         DiagnosticsEngine &DE;
         unsigned SPA_seqwarning;
         unsigned FILE_error;
@@ -38,53 +38,53 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
         bool updateParentMap;
         enum lvalueResult resolveLvalue(Stmt *tmp, Stmt *parent, DeclRefExpr *S, enum lvalueResult sideEffect){
             if(sideEffect==SideEffect){
-                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),true);
+                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),true,this->lvaluelvl);
                 return SideEffect;
             }
             switch(parent->getStmtClass()){
             case Stmt::DeclRefExprClass:
-                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false);
+                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl);
                 return Use;
             break;
             case Stmt::ImplicitCastExprClass:
-                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false);
+                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl);
                 return Use;
             break;
-            case Stmt::CallExprClass:
+            case Stmt::CallExprClass: // function implicitly has side effect on everything it can // TODO count de/referrences , this must be at least +1 &
                 if(tmp != *(parent->child_begin()/* && tmp->getType()->isPointerType()*/)){
-                    lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),true);
+                    lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),true,this->lvaluelvl);
                     return SideEffect;
                 }
             break;
-            case Stmt::UnaryOperatorClass:
+            case Stmt::UnaryOperatorClass: //TODO: increase lvaluelvl for &, decrease for *
                 if(static_cast<UnaryOperator*>(parent)->isIncrementDecrementOp()){
-                    lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),true);
+                    lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),true,this->lvaluelvl);
                     return SideEffect;
                 }
-                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false);
+                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl);
                 return Use;
             break;
             case Stmt::BinaryOperatorClass:
                 if(tmp == *(parent->child_begin())){
-                    lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),true);
+                    lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),true,this->lvaluelvl);
                     return SideEffect;
                 }
-                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false);
+                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl);
                 return Use;
             break;
             case Stmt::CompoundAssignOperatorClass:
                 if(tmp == *(parent->child_begin())){
-                    lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),true);
+                    lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),true,this->lvaluelvl);
                     return SideEffect;
                 }
-                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false);
+                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl);
                 return Use;
             break;
             default:
             break;    
             }
             if(sideEffect == Use){
-                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false);
+                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl);
                 return Use;
             }
             return None;
@@ -108,7 +108,7 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
         }*/
 
     public:
-        SPAVisitor(CompilerInstance &CI, LvalueTable &lvalueTable) : DE(CI.getDiagnostics()), lvalueTable(lvalueTable), parentMap(0), updateParentMap(false)/*, parentMap(static_cast<Decl*>(CI.getASTContext().getTranslationUnitDecl()))*/{
+        SPAVisitor(CompilerInstance &CI, LvalueTable &lvalueTable) : lvaluelvl(0), DE(CI.getDiagnostics()), lvalueTable(lvalueTable), parentMap(0), updateParentMap(false)/*, parentMap(static_cast<Decl*>(CI.getASTContext().getTranslationUnitDecl()))*/{
             SPA_seqwarning = DE.getCustomDiagID(DiagnosticsEngine::Warning, "Warning: side effect and sequence point related undefined behavior [SPA]");
         }
         ~SPAVisitor(){
@@ -152,6 +152,7 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
             break;    
             }*/
             //change the root node if processing new function
+            
             if(this->updateParentMap){
                 this->updateParentMap = false;
                 if(this->parentMap){
@@ -161,6 +162,7 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
             }
             if(S->getStmtClass() == Stmt::DeclRefExprClass){
                 DEBUG("DeclRefExpr: " << static_cast<DeclRefExpr*>(S)->getDecl()->getNameAsString());
+                this->lvaluelvl = 0;
                 Stmt *parent = S;
                 Stmt *tmp = S;
                 enum lvalueResult sideEffect = None;
