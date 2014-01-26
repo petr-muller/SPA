@@ -31,6 +31,7 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
         int lvaluelvl;
         DiagnosticsEngine &DE;
         unsigned SPA_seqwarning;
+        unsigned SPA_fallback;
         unsigned FILE_error;
         NamedDecl *CurrentFunDecl;
         LvalueTable &lvalueTable;
@@ -57,6 +58,12 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
                 }
             break;
             case Stmt::UnaryOperatorClass: //TODO: increase lvaluelvl for &, decrease for *
+                if(static_cast<UnaryOperator*>(parent)->getOpcode() == UO_Deref){
+                    this->lvaluelvl--;
+                }
+                if(static_cast<UnaryOperator*>(parent)->getOpcode() == UO_AddrOf){
+                    this->lvaluelvl++;
+                }
                 if(static_cast<UnaryOperator*>(parent)->isIncrementDecrementOp()){
                     lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),true,this->lvaluelvl);
                     return SideEffect;
@@ -65,7 +72,7 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
                 return Use;
             break;
             case Stmt::BinaryOperatorClass:
-                if(tmp == *(parent->child_begin())){
+                if(static_cast<BinaryOperator*>(parent)->isAssignmentOp() && tmp == *(parent->child_begin())){
                     lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),true,this->lvaluelvl);
                     return SideEffect;
                 }
@@ -80,10 +87,22 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
                 lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl);
                 return Use;
             break;
+            case Stmt::CompoundStmtClass:
+                return None;
+            case Stmt::ReturnStmtClass:
+                return None;
+            break;
+            case Stmt::DeclStmtClass:
+                return None;
+            break;
+            case Stmt::ParenExprClass:
+                return Use;
+            break;
             default:
             break;    
             }
-            if(sideEffect == Use){
+            DE.Report(DE.getCustomDiagID(DiagnosticsEngine::Warning, std::string("Warning: fallback action while processing a node of unknown type ") + parent->getStmtClassName()));
+            if(sideEffect == Use){//fallback action - this may lead to false positives
                 lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl);
                 return Use;
             }

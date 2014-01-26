@@ -21,7 +21,12 @@ class LvalueTable{
 };
 
 std::string LvalueTable::printLvl(int lvaluelvl){
-    return std::string("LVL");
+    if(lvaluelvl==0){
+        return std::string();
+    }
+    char symbol = lvaluelvl>0 ? '&' : '*';
+    lvaluelvl = lvaluelvl>0 ? lvaluelvl : -1*lvaluelvl;
+    return std::string(lvaluelvl,symbol);
 }
 
 bool LvalueTable::set(clang::Stmt *S, clang::DeclRefExpr *D, bool sideEffect, int lvaluelvl){
