@@ -51,13 +51,16 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
                 lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl);
                 return Use;
             break;
-            case Stmt::CallExprClass: // function implicitly has side effect on everything it can // TODO count de/referrences , this must be at least +1 &
-                if(tmp != *(parent->child_begin()/* && tmp->getType()->isPointerType()*/)){
+            case Stmt::CallExprClass: // function implicitly has side effect on everything it can
+                if(this->lvaluelvl>0 && tmp != *(parent->child_begin()/* && tmp->getType()->isPointerType()*/)){ //FIXME: int i; int j = &i; works for f(&j) but not for f(j) (which should tag side effect for i)
+                this->lvaluelvl--;
                     lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),true,this->lvaluelvl);
                     return SideEffect;
                 }
+                this->lvaluelvl--;
+                return None;
             break;
-            case Stmt::UnaryOperatorClass: //TODO: increase lvaluelvl for &, decrease for *
+            case Stmt::UnaryOperatorClass:
                 if(static_cast<UnaryOperator*>(parent)->getOpcode() == UO_Deref){
                     this->lvaluelvl--;
                 }
