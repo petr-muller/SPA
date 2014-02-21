@@ -52,12 +52,18 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
                 return Use;
             break;
             case Stmt::CallExprClass: // function implicitly has side effect on everything it can
-                if(this->lvaluelvl>0 && tmp != *(parent->child_begin()/* && tmp->getType()->isPointerType()*/)){ //FIXME: int i; int j = &i; works for f(&j) but not for f(j) (which should tag side effect for i)
+                if(this->lvaluelvl>0 && tmp != *(parent->child_begin())){ //FIXME: int i; int j = &i; works for f(&j) but not for f(j) (which should tag side effect for i)
                 this->lvaluelvl--;
                     lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),true,this->lvaluelvl);
                     return SideEffect;
                 }
                 this->lvaluelvl--;
+                return None;
+            break;
+            case Stmt::ConditionalOperatorClass:
+                if(tmp !=  *(parent->child_begin())){
+                    return Use;
+                }
                 return None;
             break;
             case Stmt::UnaryOperatorClass:
@@ -99,6 +105,16 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
                 return None;
             break;
             case Stmt::ParenExprClass:
+                return Use;
+            break;
+            case Stmt::ArraySubscriptExprClass:
+                return Use;
+            break;
+            case Stmt::IfStmtClass:
+            case Stmt::WhileStmtClass:
+            case Stmt::SwitchStmtClass:
+            case Stmt::BreakStmtClass:
+            case Stmt::DoStmtClass:
                 return Use;
             break;
             default:

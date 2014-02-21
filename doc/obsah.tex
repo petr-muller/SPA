@@ -4,11 +4,11 @@
 \chapter{Introduction}
 The C programming language is a very powerful and effective way of writing programs. Arguably the most important reason is that it is almost as low-level as a structured programming language can be. This leads to great freedom of choice and potentially very effective resulting program, however with this freedom comes a programmer's responsibility to either evade some language constructs or to cope with possible unpredictable results -- the undefined behavior in C.
 
-The most important document to study regarding the C language is its most recent standard: ISO/IEC 9899:2011\cite{C11} , informally known as \emph{ISO C11}. (For the purpose of this paper, I am gonna cite its last free and public draft available\cite{WG14N1570})
+The most important document to study regarding the C language is its most recent standard: ISO/IEC 9899:2011~\cite{C11} , informally known as \emph{ISO C11}. (For the purpose of this paper, I am going to cite its last free and public draft available~\cite{WG14N1570})
 
 %%%%%%%%%%%%
 \section{Undefined behavior}
-ISO C11 specifies how the implementation is expected to work and when there are no expectations regarding the implementation's behavior at all. Multiple terms are used to describe similar but different requirements on the implementation:\cite{WG14N1570}
+ISO C11 specifies how the implementation is expected to work and when there are no expectations regarding the implementation's behavior at all. Multiple terms are used to describe similar but different requirements on the implementation:~\cite{WG14N1570}
 \begin{itemize}
     \item \emph{Behavior} -- external  appearance or action
     \item \emph{Unspecified behavior} -- use of an unspecified value, or other behavior where this International Standard provides two or more possibilities and imposes no further requirements on which is chosen in any instance
@@ -21,13 +21,13 @@ Bear in mind that undefined behavior allows \emph{any} behavior -- meaning not o
 
 %%%%%%%%%%%%
 \section{Side effect}
-``Accessing a volatile object, modifying an object, modifying a file, or calling a function that does any of those operations are all side effects, which are changes in the state of the execution environment. Evaluation of an expression in general includes both value computations and initiation of side effects. Value computation for an lvalue expression includes determining the identity of the designated object.''\cite{WG14N1570}
+ISO C11~\cite{WG14N1570} gives the following definition for a side effect: ``Accessing a volatile object, modifying an object, modifying a file, or calling a function that does any of those operations are all side effects, which are changes in the state of the execution environment. Evaluation of an expression in general includes both value computations and initiation of side effects. Value computation for an lvalue expression includes determining the identity of the designated object.''
 
 Informally said, a side effect is usually modifying a memory during evaluation of an expression -- for example \verb|i++| is an expression whose \emph{return value} is the value of \verb|i| before evaluation \emph{and the value of }\verb|i|\emph{ is incremented by 1} -- this is the side effect, the expression evaluation accesed the memory addressed by \verb|i| and modified its value.
 
 %%%%%%%%%%%%
 \section{Sequence point}
-``Sequenced before is an asymmetric, transitive, pair-wise relation between evaluations
+The C standard~\cite{WG14N1570} states that ``Sequenced before is an asymmetric, transitive, pair-wise relation between evaluations
 executed by a single thread, which induces a partial order among those evaluations.
 Given any two evaluations A and B, if A is sequenced before B, then the execution of A
 shall precede the execution of B. (Conversely, if A is sequenced before B, then B is
@@ -36,11 +36,11 @@ unsequenced. Evaluations A and B are indeterminately sequenced when A is sequenc
 either before or after B, but it is unspecified which. The presence of a sequence point
  between the evaluation of expressions A and B implies that every value computation and
 side effect associated with A is sequenced before every value computation and side effect
-associated with B.''\cite{WG14N1570}
+associated with B.''
 
-This means that the evaluation order of expressions may and may not be specified and if it's not, the implementation may and may not be required to specify it and do it consistently and predictably. ISO C11, in other words, states that an expression A must be evaluated (or at least the external behavior must appear like it is evaluated -- ``an actual implementation need not evaluate part of an expression if it can deduce that its value is not used and that no needed side effects are produced''\cite{WG14N1570}) before an expression B when it is on the left side of a sequence point that is between A and B. Otherwise A and B may either be evaluated in an unspecified order or they can even \emph{not be evaluated in any order} -- the evaluation of A may start, then be interrupted, B may be evaluated and A evaluation may be completed then, for example.
+This means that the evaluation order of expressions may and may not be specified and if it is not, the implementation may and may not be required to specify it and do it consistently and predictably. ISO C11, in other words, states that an expression A must be evaluated (or at least the external behavior must appear like it is evaluated -- ``an actual implementation need not evaluate part of an expression if it can deduce that its value is not used and that no needed side effects are produced''~\cite{WG14N1570}) before an expression B when it is on the left side of a sequence point that is between A and B. Otherwise A and B may either be evaluated in an unspecified order or they can even \emph{not be evaluated in any order} -- the evaluation of A may start, then be interrupted, B may be evaluated and A evaluation may be completed then, for example.
 
-ISO C11 enumerates the sequence points as follows:\cite{WG14N1570}
+ISO C11 enumerates the sequence points as follows:~\cite{WG14N1570}
 \begin{itemize}
     \item Between the evaluations of the function designator and actual arguments in a function call and the actual call.
     \item Between the evaluations of the first and second operands of the following operators: logical AND $\&\&$ ; logical OR $\|$ ; comma , .
@@ -55,18 +55,21 @@ controlling expression of a selection statement (if or switch); the controlling 
 
 %%%%%%%%%%%%
 \section{Consequences}
-Undefined behavior occurs when ``a side effect on a scalar object is unsequenced relative to either a different side effect on the same scalar object or a value computation using the value of the same scalar object''.\cite{WG14N1570} That means whenever there are two expressions that are unsequenced and have a side effect on the same object (meaning its value is to be modified, but in any order and possibly not even in any order), the undefined behavior occurs meaning not only the value of a given object is undefined but the whole program might do absolutely anything -- of course most of the implementations will do something ``reasonable'', but they are not required to.
+According to ISO C11~\cite{WG14N1570}, undefined behavior occurs when ``a side effect on a scalar object is unsequenced relative to either a different side effect on the same scalar object or a value computation using the value of the same scalar object''. That means whenever there are two expressions that are unsequenced and have a side effect on the same object (meaning its value is to be modified, but in any order and possibly not even in any order), the undefined behavior occurs meaning not only the value of a given object is undefined but the whole program might do absolutely anything -- most of the implementations will probably do something ``reasonable'', but they are not required to.
 
-This kind of undefined behavior appears not to be very dangerous on sight -- most of the programmers would either expect this expression to be well-defined or think the value of \verb|i| would either be \verb|i| or \verb|i+1|.
+This kind of undefined behavior appears not to be very dangerous on sight -- most of the programmers would either expect, e.g., \verb|i = i++;| expression to be well-defined or think the value of \verb|i| would either be \verb|i| or \verb|i+1|.
 However, if you write \verb|i = i++;| in your program and run it, you might get your hard disk erased just as well.
 
 Another reason why this is dangerous is that most of the implementations will behave ``reasonably'' and do one of the things a programmer would expect. It is therefore hard to reveal this kind of errorneous C constructs and it might be present in a program for many years until the implementation behavior changes and the program, too, suddenly changes its behavior for no obvious reason.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Examples}
-Some examples (and test cases) follow:
+As described in the previous chapter, it is a very reasonable requirement not to have any undefined behavior in one's program. Also it is highly questionable whether even a very good programmer can manage to find all of the possible constructs leading to undefined behavior due sequence point misunderstanding as some of them are very obscure. Most of the people who can code in C have probably never even heard of ``sequence point'' and often (this is my personal observation) don not believe certain construct leads to undefined behavior or are confused and try to guess which is the ``correct'' result.
 
-\emph{Example 1:}
+In this chapter, I will show some examples of constructs leading to undefined behavior from most basic ones to some more obscure ones.
+
+\section{Example 1}\label{example1}
+This is the first example I have shown some people to give an example of what my work is about. Many of them, however, did not even believe this is an undefined behavior, which only shows how dangerous even the most basic case is.
 \begin{lstlisting}
 int main(void){
 	int i = 1;
@@ -75,8 +78,10 @@ int main(void){
 	return i;
 }
 \end{lstlisting}
+The assignment operator modifies the same memory as the post-increment operator while there is no sequence point between them. Not only does this operation have unspecified results (which most of the people who have seen it for the first time admitted after my explanation) but it leads to undefined behavior rendering the whole meaningless and dangerous.
 
-\emph{Example 2:}
+\section{Example 2}\label{example2}
+The second example is almost the same except for one thing: the second operand of the assignment is now accessed via pointer.
 \begin{lstlisting}
 int main(){
 	int i = 0;
@@ -85,10 +90,11 @@ int main(){
 	i = (*j)++;
     return i;
 }
+\end{lstlisting}\label{example2}
+It is, however, the same undefined behavior as in the previous case because it modifies the same memory more than once within the same sequence point. It is also not so easily observable and one can miss this construct when not looking for it specifically.
 
-\end{lstlisting}
-
-\emph{Example 3:}
+\section{Example 3}\label{example3}
+Another example shows undefine dbehavior when calling a function:
 \begin{lstlisting}
 int f(int *a){
     (*a)++;
@@ -102,13 +108,16 @@ int g(int *b){
 
 int main(){
     int i = 1;
-    //function calling order is undefined
+    //f and g modify the same memory as the assignment;
+    //furthermore, the function calling order is undefined
     i = f(&i) + g(&i);
     return i;
 }
-\end{lstlisting}
+\end{lstlisting}\label{example3}
+One problem here is that there is no defined order of evaluation of the addition's operands. Many people would think that the result is just unspecified and will be one of the two values. Another problem, however, is that both of these functions modify the same memory, so this is, again, undefined behavior.
 
-\emph{Example 4:}
+\section{Example 4}\label{example4}
+This is another example which some of good programmers may miss:
 \begin{lstlisting}
 int a(int *a){
     (*a)++;
@@ -132,8 +141,10 @@ int main(void){
     return i;
 }
 \end{lstlisting}
+While the standard states that a \emph{comma operator} is a sequence point, in this case, the comma does not denote an \emph{operator}. The order of evaluation of the function arguments (calling \verb|a| and \verb|b| functions) is undefined and, in this particular case, it leads to undefined behavior as both of the functions have a side effect on the same variable.
 
-\emph{Example 5:}
+\section{Example 5}\label{example5}
+Here I show the same problem when indexing arrays:
 \begin{lstlisting}
 int main(void){
     char arr[42];
@@ -144,8 +155,10 @@ int main(void){
     return arr[i-1];
 }
 \end{lstlisting}
+The index is always the same (as the second operand of the assignment has no side effect), the value written may, however, be the value before or after incrementation. Note that \verb|arr[i-1]| is returned because \verb|i| was incremented as a side effect, but the value returned is its original value.
 
-\emph{Example 6:}
+\section{Example 6}\label{example6}
+A subtle change may change the expected results completely.
 \begin{lstlisting}
 int main(void){
     char arr[42];
@@ -156,42 +169,102 @@ int main(void){
     return arr[i-1];
 }
 \end{lstlisting}
+In this case, we do not even know where the data will be written as \verb|i| may or may not be incremented before array subscription.
 
-\emph{Example 7:}
+\section{Example 7}\label{example7}
+The last example shows an obvious case of undefined behavior where a programmer who is not aware of sequence point problematic would not expect any problem as the result seems to be the same regardless of the evaluation order.
 \begin{lstlisting}
 int main(void){
     int j;
     int i = 0;
-    //The sum is expectable to always be the same, however, the behavior
-    //is undefined meaning this can lead to absolutely random results
+    //The sum seems to be expectable to always be the same,
+    //however, the behavioris undefined meaning this can
+    //lead to absolutely random results
     j = i++ + ++i;
 }
 \end{lstlisting}
+The difference between postfix and prefix incrementation is that, while they both increment the variable value, the postfix one returns the original value of the variable and the prefix one returns the incremented value. Many people would probably guess that no matter in which order the expression is evaluated, it will return the same value. Saying that would be the same mistake as I have shown in some of the previous examples as this expression modifies the same memory more than once within the same sequence point.
 
-These are all examples of not only undefined result of the expression (as stated in comments, this is the most expectable behavior of most of the implementations), but of \emph{undefined behavior} (because the memory is modified more than once) where the implementation is not required to do anything particular.
+\section{Summary}
+These are all examples of either unspecified results (while there is ``reasonably'' defined behavior for most of the implementations, the results may still be unexpected), or sometimes even of \emph{undefined behavior} (because the memory is modified more than once) where the implementation is not required to do anything particular. I will now show some ``positive'' examples of programs \emph{without} any unspecified results or undefined behavior.
+
+\section{Positive example 1}
+While this code looks suspicious, it is perfectly fine:
+\begin{lstlisting}
+int main(void){
+    int i = 42;
+    int j;
+    j = i++ , ++i , ++i);
+    return j;
+}
+\end{lstlisting}
+This is correct because a \emph{comma operator} is a sequence point.
+
+\section{Positive example 2}
+Another example of correct code.
+\begin{lstlisting}
+int main(void){
+    int i = 42;
+    int j, k;
+    k = (j = i++);
+    return k;
+}
+\end{lstlisting}
+The return value of \verb|i++| is used in an assignment, but in another object.
+
+\section{Positive example 3}
+An example of code which might look suspicious for a person over-concerned with the sequence point problem.
+\begin{lstlisting}
+int main(void){
+    int i = 42;
+    i = i + 1;
+    return i;
+}
+\end{lstlisting}
+While on first sight this looks similar to \verb|i = ++i;|, the \verb|i+1| expression has no side effect on \verb|i| and this code is correct.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Existing solutions and the goal of this work}
 As I brightly described in the previous chapter, this kind of undefined behavior is potentially very dangerous and hard to detect before the real problem occurs. Some implementations have very basic warnings for a programmer at compilation time, but most of them fail in any non-trivial case, for example using a function with a side effect or accessing the object via a pointer rather than directly. I will therefore try to compare some of these implementations, describe why their solutions are not suitable and briefly describe my concept of an automated tool for detection of the previously described behavior.
 %%%%%%%%%%%%
 \section{Existing solutions}
-Among the existing solutions, most noticeable are the ones included in widely used compilers, Clang and GCC.
+Currently I know about two existing solutions for static analysis, both included in widely used compilers, Clang~\cite{Clang} and GCC~\cite{GCC}. Another tool is PVS-Studio~\cite{PVSStudio} that is specifically meant for static analysis. There is also CompCert's~\cite{CompCert} dynamic analysis.
 \subsection{GCC}
-GCC's \verb|-Wunsequenced| modifier is able to detect some basic occurences of side-effect related undefined behavior, but fails in cases as basic as using a function with side effect or side effect on a memory accessed via pointer. It's not easy to use GCC as an API or write plugins for it as GCC is not as modular as Clang.\cite{ClangComparison}
+GCC's \verb|-Wunsequenced| modifier is able to detect some basic occurences of side-effect related undefined behavior, but fails in cases as basic as using a function with side effect or side effect on a memory accessed via pointer. It is not easy to use GCC as an API or write plugins for it as GCC is not as modular as Clang.~\cite{ClangComparison}
 \subsection{Clang}
-Clang is an alternative to GCC and is usually considered to be better for diagnostic purposes and for understandable warnings. It fails in the same basic cases as GCC, Clang, however, offers a reasonable environment for further development and will be used for a part of my work.
+Clang is an alternative to GCC and is usually considered to be better for diagnostic purposes and for understandable warnings. Its compile-time warnings fail in the same basic cases as GCC, Clang, however, offers a reasonable environment for further development and will be used for a part of my work.
+\subsection{PVS-Studio}
+While PVS-Studio might be an interesting option, it has the same problems as previously mentioned ones and because it is meant specifically for static checking, it would be hard to reuse a check in a compiler so warnings show at compile-time.
+\subsection{CompCert C}
+CompCert is a formally verified compiler~\cite{CompCert} that is able to \emph{dynamically} detect sequence-point related undefined behavior.
+%%%%%%%%%%%%
+\section{Theoretical work}
+Multiple related theoretical works exist, none of them, however, covers all the needed topics:
+\subsection{Sequence points}
+A blogpost~\cite{CompCertBlogpost} about CompCert's approach based on formal semantics of C by Chucky Ellison and Grigore Rosu.~\cite{formalSemantics}
+\subsection{Working with AST}
+A paper published by WG14 about dividing the AST into subexpressions with sequence points specifically in mind.~\cite{seqPointWG14}
+\subsection{What other checkers are needed}
+A blogpost that originally made me work on this. It shows some examples of undefined behavior and states that it would be useful if there were some dynamic checkers.~\cite{regehr}
+\subsection{Alias analysis}
+One of multiple papers about alias analysis showing an approach which would be possible to implement on a Clang's AST level if there were no better options.~\cite{steensgaard}
 %%%%%%%%%%%%
 \section{Sequence-point analyzer goal}
-These solutions are not sufficient as they usually only catch undefined behavior in example and test source codes, which is so apparent that most programmers wouldn't do such a mistake. Most of these errors occur while dealing with functions that have side effects, accessing a variable via a pointer, using array indexation etc.
-There are multiple theoretical works regarding this topic, none of them, however, deals satisfyingly with pointers (where alias analysis is needed)\cite{AliasWiki} and functions.
+Both tools able to statically detect undefined behavior can detect it in Example 1~(\ref{example1}) (\verb|i = i++;|). None of them, however, works e.g. on Example 2~(\ref{example2}) or Example 3~(\ref{example3}) (\verb|i = (*j)++;| and \verb|i = f(&i) + g(&i);|). This is due to lack of alias analysis and not considering functions at all.
+
+These solutions are not sufficient as they usually only catch undefined behavior in example and test source codes, which is so apparent that most programmers would not do such a mistake. Most of these errors occur while dealing with functions that have side effects, accessing a variable via a pointer, using array indexation etc.
+There are multiple theoretical works regarding this topic, none of them, however, deals satisfyingly with pointers (where alias analysis is needed)~\cite{aliasAnalysis} and functions.
 
 As there is no suitable existing tool, my work's goal is to \emph{implement a static checker for side-effect and sequence-point related undefined behavior, including access via pointers and functions}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Sequence-point analyzer}
-The first step in order to write such a tool is building the abstract syntax tree or accesing an existing one. The expressions can then be divided into sequence points and it's also possible to determine which subexpression can issue a side effect and to which variable. Let's use an example program 1 to demonstrate how it can work:
+The first step in order to write such a tool is building the abstract syntax tree or accesing an existing one. The expressions can then be divided into sequence points and it is also possible to determine which subexpression can issue a side effect and to which variable. Let us use Example 1~(\ref{example1}) to demonstrate how it can work:
 \section{Division into sequence points}
-This is the AST dump from Clang:
-
+AST dump of example 1~(\ref{example1}) provided by Clang is shown on figure \ref{ASTdump}.
+\begin{figure}
+\caption{Example 1~(\ref{example1}) AST dump}
+\label{ASTdump}
 \small{
 \begin{lstlisting}
 TranslationUnitDecl 0x29bdec0 <<invalid sloc>>
@@ -211,13 +284,13 @@ TranslationUnitDecl 0x29bdec0 <<invalid sloc>>
       `-ImplicitCastExpr 0x29beae0 <col:9> 'int' <LValueToRValue>
         `-DeclRefExpr 0x29beab8 <col:9> 'int' lvalue Var 0x29be990 'i' 'int'
 \end{lstlisting}}
-
-And this is its graphical representation (after omitting the typedefs from the beginning):
-
-\begin{figure}[H]
-  \caption{Example 1 AST graphical representation}
-  \centering
-    \includegraphics[width=1\textwidth]{fig/example1G.pdf}
+\end{figure}
+On figure \ref{ASTuntagged} is its graphical representation (after omitting the typedefs from the beginning).
+\begin{figure}
+    \caption{Example 1~(\ref{example1}) AST graphical representation}
+    \label{ASTuntagged}
+    \centering
+        \includegraphics[width=1\textwidth]{fig/example1G.pdf}
 \end{figure}
 
 As we can see, we can, by definition of individual AST nodes, determine what (if any) child node is the side effect going to be applied to. Then when we go several levels up from node A towards the root and stop in node B, we can conclude that the whole subtree of B in which the node A is still has the side effect on the same memory address. We therefore can start from the DeclRefExpr nodes and while traversing the tree up to the root, decide whether the current node implies a side effect on a given DeclRefExpr.
@@ -242,12 +315,12 @@ Pretty nonsense, but legal. Returns 42. Some other expressions, however, get rid
 
 %%%%%%%%%%%%
 \section{Node tagging}
-From this, we can conclude that every node can be tagged either as "implying a side effect", "not implying anything" or "making side effect impossible" on certain memory place given by certain DeclRefExpr. We can do this for each DeclRefExpr. The picture from the above would then be tagged as follows:
-
-\begin{figure}[H]
-  \caption{Example 1 AST graphical representation}
-  \centering
-    \includegraphics[width=0.6\textwidth]{fig/example1G-tagged.pdf}
+From this, we can conclude that every node can be tagged either as "implying a side effect", "not implying anything" or "making side effect impossible" on certain memory place given by certain DeclRefExpr. We can do this for each DeclRefExpr. The picture from the above would then be tagged as shown on figure \ref{ASTtagged}.
+\begin{figure}
+    \caption{Example 1~(\ref{example1}) AST graphical representation -- tagged}
+    \label{ASTtagged}
+    \centering
+        \includegraphics[width=0.6\textwidth]{fig/example1G-tagged.pdf}
 \end{figure}
 
 We began tagging from the left DeclRefExpr. It surely can be used as an l-value but the expression itself implies no side effect, hence the blue tag ("not implying anything"). We went towards the root and as we passed the \verb|BinaryExpression (=)|, we mark it as an expression implying a side effect on \verb|i| (red tag) as it modifies the memory contents of \verb|i|. We continued to the top implicitly marking all the parent nodes as having a side effect on \verb|i|. Then we can do the same for the right DeclRefExpr and as we see two red tags of the same variable, we can say we found an undefined behavior.
@@ -267,7 +340,7 @@ int main(){
 
 \verb|*j| may and may not alias with \verb|i|. After the tagging, I will therefore need to be able to determine whether two memory spaces alias.
 
-This can't, however, be done in Clang on the AST level (as long as I am not willing to implement my own alias analysis, which would be useless). Neither is it possible to analyze AST using tools conventionally used for alias analysis. This said, the goal of the first part of my project is to merely generate a set of constraints saying under what conditions the undefined behavior may occur. For this example, the goal is to generate a rule saying "On the row 4, there is undefined behavior \emph{if} \verb|*j| aliases with \verb|i|". This can be checked later on either in LLVM or using some external alias analysis.
+This can not, however, be done in Clang on the AST level (as long as I am not willing to implement my own alias analysis, which would be useless). Neither is it possible to analyze AST using tools conventionally used for alias analysis. This said, the goal of the first part of my project is to merely generate a set of constraints saying under what conditions the undefined behavior may occur. For this example, the goal is to generate a rule saying "On the row 4, there is undefined behavior \emph{if} \verb|*j| aliases with \verb|i|". This can be checked later on either in LLVM or using some external alias analysis.
 
 %%%%%%%%%%%%
 \section{Functions}
@@ -295,7 +368,7 @@ In this case, the most efficient and usable approach is probably just stating th
 
 %%%%%%%%%%%%
 \section{Output format}
-For sake of portability, the output of the first (Clang) phase won't be forwarded directly to LLVM (which is probably the tool that will be used for alias analysis), but to standard output using a marshalling algorithm. The output must contain the following information:
+For sake of portability, the output of the first (Clang) phase will not be forwarded directly to LLVM (which is probably the tool that will be used for alias analysis), but to standard output using a marshalling algorithm. The output must contain the following information:
 
 \begin{itemize}
 \item Row of the source file

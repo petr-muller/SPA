@@ -96,8 +96,8 @@
   year=2014,            %rok
   date=\today,           %datum odevzdani
   %Nazev prace
-  title.cs={Detekce nedefinovaného chování v C týkajícího se vedlejších efektů a sequence pointů pomocí statické analýzy},  %nazev prace v cestine
-  title.en={Detecting of undefined behavior in C regarding side effects and sequence points using static analysis}, %nazev prace v anglictine
+  title.cs={Vyhledávání výrazů s nedefinovaným chováním v jazyce C},  %nazev prace v cestine
+  title.en={Detection of expressions with undefined behavior in C}, %nazev prace v anglictine
   %Autor
   author={Lukáš Hellebrandt},   %jmeno prijmeni autora
   %author.title.p=Bc., %titul pred jmenem (nepovinne)
@@ -115,12 +115,12 @@
   keywords.cs={C, nedefinované chování, statická analýza, vedlejší efekt, sequence point, clang, llvm}, %klicova slova v ceskem jazyce
   keywords.en={C, undefined behavior, static analysis, side effect, sequence point, clang, llvm}, %klicova slova v anglickem jazyce
   %Abstract
-  abstract.cs={Práce zabývající se detekcí nedefinovaného chování v jazyce C, které se týká vedlejších efektů a sequence pointů. Teoretický rozbor, sada příkladů a technická zpráva o prototypu automatizovaného nástroje pro vyhledávání tohoto chování.}, % abstrakt v ceskem jazyce
-  abstract.en={Thesis about detection of undefined behavior in the C programming language regarding side effects and sequence points. Theoretical part, set of examples and a technical report about the prototype of an automated tool for detection of this behavior.}, % abstrakt v anglickem jazyce
+  abstract.cs={Práce se zabývá detekcí nedefinovaného chování v jazyce C, týkájícího se sequence pointů a vedlejších efektů, s důrazem na funkčnost i v případě přístupu k paměti přes ukazatel nebo volání funkce. K tomu je použita statická analýza. Je proveden teoretický rozbor, vysvětlení pojmů jako nedefinované chování nebo vedlejší efekt. Dále je vysvětlena nebezpečnost konstrukcí vedoucích k tomuto chování. Nakonec je navržen nástroj pro automatizovanou detekci a popsány principy jeho funkce. Práce obsahuje příklady nebezpečných konstrukcí, na některých z nich jsou demonstrovány funkce vytvořeného nástroje.}, % abstrakt v ceskem jazyce
+  abstract.en={This thesis engages in detection of undefined behavior in the C language regarding sequence points and side effects, stressing its functionality even in cases like accessing the memory via a pointer or function calling. Static analysis is used for this purpose. A theoretical analysis is done and terms like undefined behavior or side effect are explained. Furthermore, explanation of constructs leading to this behavior is done. Finally, a tool for automated detection is proposed and principles of its function shown. The thesis contains examples of dangerous constructs, functions of the created tool are demonstrated on some of them.}, % abstrakt v anglickem jazyce
   %Prohlaseni
   declaration={Prohlašuji, že jsem tuto bakalářskou práci vypracoval samostatně pod vedením pana Petra Müllera.},
   %Podekovani (nepovinne)
-  acknowledgment={Děkuji panu Müllerovi za vedení mé práce a mnoho inspirujících podnětů. Dále panu Perringerovi a panu Husárovi za cenné rady.} % nepovinne
+  acknowledgment={Děkuji panu Müllerovi za vedení mé práce a mnoho inspirujících podnětů. Dále panu Peringerovi a panu Husárovi za cenné rady.} % nepovinne
 }
 
 %Abstrakt (cesky, anglicky)
