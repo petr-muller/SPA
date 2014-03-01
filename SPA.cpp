@@ -105,9 +105,14 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
                 return None;
             break;
             case Stmt::ParenExprClass:
+                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl);
                 return Use;
             break;
             case Stmt::ArraySubscriptExprClass:
+                if(tmp != *(parent->child_begin())){
+                    this->lvaluelvl--;
+                }
+                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl);
                 return Use;
             break;
             case Stmt::IfStmtClass:
@@ -115,12 +120,13 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
             case Stmt::SwitchStmtClass:
             case Stmt::BreakStmtClass:
             case Stmt::DoStmtClass:
+                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl);
                 return Use;
             break;
             default:
             break;    
             }
-            DE.Report(DE.getCustomDiagID(DiagnosticsEngine::Warning, std::string("Warning: fallback action while processing a node of unknown type ") + parent->getStmtClassName()));
+            DE.Report(this->SPA_fallback) << parent->getStmtClassName();
             if(sideEffect == Use){//fallback action - this may lead to false positives
                 lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl);
                 return Use;
@@ -147,7 +153,8 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
 
     public:
         SPAVisitor(CompilerInstance &CI, LvalueTable &lvalueTable) : lvaluelvl(0), DE(CI.getDiagnostics()), lvalueTable(lvalueTable), parentMap(0), updateParentMap(false)/*, parentMap(static_cast<Decl*>(CI.getASTContext().getTranslationUnitDecl()))*/{
-            SPA_seqwarning = DE.getCustomDiagID(DiagnosticsEngine::Warning, "Warning: side effect and sequence point related undefined behavior [SPA]");
+            this->SPA_seqwarning = DE.getCustomDiagID(DiagnosticsEngine::Warning, "Warning: side effect and sequence point related undefined behavior [SPA]");
+            this->SPA_fallback = DE.getCustomDiagID(DiagnosticsEngine::Warning, "Warning: fallback action while processing a node of unknown type '%0'");
         }
         ~SPAVisitor(){
             if(this->parentMap != 0){
@@ -235,12 +242,13 @@ class SPAConsumer : public clang::ASTConsumer {
         SPAVisitor Visitor;
 
     public:
-        SPAConsumer(CompilerInstance &CI) : Visitor(SPAVisitor(CI, lvalueTable)){}
+        SPAConsumer(CompilerInstance &CI): lvalueTable(LvalueTable(CI)) , Visitor(SPAVisitor(CI, lvalueTable)){}
 
         virtual void HandleTranslationUnit(clang::ASTContext &Context){
             //Visit all nodes in the AST
             Visitor.TraverseDecl(Context.getTranslationUnitDecl());
             lvalueTable.dump();
+            std::cout << lvalueTable.makeConstraints();
         }
 };
 

@@ -54,7 +54,7 @@ controlling expression of a selection statement (if or switch); the controlling 
 \end{itemize}
 
 %%%%%%%%%%%%
-\section{Consequences}
+\section{Consequences}%FIXME: str. 76 normy, body 2 a 3, zminit. That means whenever there are two expressions that are unsequenced and have multiple side effects OR a side effect and an access on the same object...
 According to ISO C11~\cite{WG14N1570}, undefined behavior occurs when ``a side effect on a scalar object is unsequenced relative to either a different side effect on the same scalar object or a value computation using the value of the same scalar object''. That means whenever there are two expressions that are unsequenced and have a side effect on the same object (meaning its value is to be modified, but in any order and possibly not even in any order), the undefined behavior occurs meaning not only the value of a given object is undefined but the whole program might do absolutely anything -- most of the implementations will probably do something ``reasonable'', but they are not required to.
 
 This kind of undefined behavior appears not to be very dangerous on sight -- most of the programmers would either expect, e.g., \verb|i = i++;| expression to be well-defined or think the value of \verb|i| would either be \verb|i| or \verb|i+1|.
@@ -143,6 +143,7 @@ int main(void){
 \end{lstlisting}
 While the standard states that a \emph{comma operator} is a sequence point, in this case, the comma does not denote an \emph{operator}. The order of evaluation of the function arguments (calling \verb|a| and \verb|b| functions) is undefined and, in this particular case, it leads to undefined behavior as both of the functions have a side effect on the same variable.
 
+%FIXME: tohle neni nedefinovane chovani. poradi vyhodnocovani operaci ale neni definovano.
 \section{Example 5}\label{example5}
 Here I show the same problem when indexing arrays:
 \begin{lstlisting}

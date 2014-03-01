@@ -10,6 +10,7 @@ int g(int *b){
 
 int main(){
     int i = 1;
-    i = f(&i) + g(&i); // !!!(A) -- function calling order is undefined
+    int j;
+    i = f(&j) + g(&j); // !!!(A) -- function calling order is undefined
     return i;
 }
