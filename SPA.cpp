@@ -134,23 +134,6 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
             return None;
         }
 
-        /*bool side_effect_race(Stmt *S){
-            std::cout << "TESTING" << std::endl;
-            if(S->child_begin()->getStmtClassName()!=std::string("DeclRefExpr")){
-		        return false;
-	        }
-	        NamedDecl *target_addr = static_cast<clang::DeclRefExpr*>(*(S->child_begin()))->getFoundDecl();
-            if((++(S->child_begin()))->getStmtClassName()!=std::string("UnaryOperator")){
-		        return false;
-	        }
-	        UnaryOperator *inc = static_cast<clang::UnaryOperator*>(*(++(S->child_begin())));
-	        if(inc->child_begin()->getStmtClassName()!=std::string("DeclRefExpr")){
-		        return false;
-	        }
-	        NamedDecl *origin_addr = static_cast<clang::DeclRefExpr*>(*(inc->child_begin()))->getFoundDecl();
-  	        return target_addr==origin_addr;
-        }*/
-
     public:
         SPAVisitor(CompilerInstance &CI, LvalueTable &lvalueTable) : lvaluelvl(0), DE(CI.getDiagnostics()), lvalueTable(lvalueTable), parentMap(0), updateParentMap(false)/*, parentMap(static_cast<Decl*>(CI.getASTContext().getTranslationUnitDecl()))*/{
             this->SPA_seqwarning = DE.getCustomDiagID(DiagnosticsEngine::Warning, "Warning: side effect and sequence point related undefined behavior [SPA]");
@@ -163,41 +146,7 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
         }
 
         bool VisitStmt(Stmt *S){
-            /*std::cout << S->getStmtClass() << " -- " << S->getStmtClassName() << std::endl;*/
-            /*if(S->getStmtClassName()==std::string("BinaryOperator")){
-                BinaryOperator *BO = static_cast<BinaryOperator *>(S);
-                if(BO->isAssignmentOp()){
-                    if(side_effect_race(S)){
-                        DE.Report(SPA_seqwarning);
-                    }
-                }
-            }*/
-            //Function write table
-            /*BinaryOperator *BO;
-            UnaryOperator *UO;
-            CallExpr *CE;
-            switch(S->getStmtClass()){
-            case Stmt::BinaryOperatorClass:
-                DEBUG("BinaryOperator");
-                BO = static_cast<BinaryOperator*>(S);
-                if(BO->isAssignmentOp() && (*(BO->child_begin()))->getStmtClass()==Expr::DeclRefExprClass){
-                    lvalueTable.add(CurrentFunDecl,static_cast<DeclRefExpr*>(*(BO->child_begin())));
-                }
-            break;
-            case Stmt::UnaryOperatorClass:
-                DEBUG("UnaryOperator");
-            break;
-            case Stmt::CallExprClass:
-                DEBUG("CallExpr");
-            break;
-            case Stmt::ArraySubscriptExprClass:
-                DEBUG("ArraySubscriptExpr");
-            break;
-            default: DEBUG("Something else");
-            break;    
-            }*/
             //change the root node if processing new function
-            
             if(this->updateParentMap){
                 this->updateParentMap = false;
                 if(this->parentMap){
@@ -206,13 +155,13 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
                 this->parentMap = new ParentMap(S);
             }
             if(S->getStmtClass() == Stmt::DeclRefExprClass){
-                DEBUG("DeclRefExpr: " << static_cast<DeclRefExpr*>(S)->getDecl()->getNameAsString());
+                //DEBUG("DeclRefExpr: " << static_cast<DeclRefExpr*>(S)->getDecl()->getNameAsString());
                 this->lvaluelvl = 0;
                 Stmt *parent = S;
                 Stmt *tmp = S;
                 enum lvalueResult sideEffect = None;
                 while(parent != 0){
-                    DEBUG("> " << parent->getStmtClassName());
+                    //DEBUG("> " << parent->getStmtClassName());
                     if((sideEffect=this->resolveLvalue(tmp,parent,static_cast<DeclRefExpr*>(S),sideEffect))==None){
                         break;
                     }
@@ -224,8 +173,6 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
         }
 
         bool VisitNamedDecl(NamedDecl *D) {
-            //For debugging, dumping the AST nodes will show which nodes are already being visited.
-            /*std::cout << "========" << D->getKind() << " -- " << D->getDeclKindName() << " << " << D->getNameAsString() <<  " >>" << std::endl;*/
             if(D->isFunctionOrFunctionTemplate()){
                 this->CurrentFunDecl = D;
                 this->updateParentMap = true;
