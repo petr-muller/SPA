@@ -15,14 +15,16 @@
 #include <iostream>
 #include <string>
 #include <fstream>
+#include <iterator>
 
 #include "LvalueTable.cpp"
 
 #define FILENAME "SPA_constraints.txt"
 
-using namespace clang;
 
 namespace {
+
+using namespace clang;
 
 //visitor
 class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
@@ -38,23 +40,29 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
         ParentMap *parentMap;
         bool updateParentMap;
         enum lvalueResult resolveLvalue(Stmt *tmp, Stmt *parent, DeclRefExpr *S, enum lvalueResult sideEffect){
+            int childIndex = 0;
+            Stmt::child_iterator child = parent->child_begin();
+            while(child!=parent->child_end() && *child != tmp){
+                std::advance(child, 1);
+                ++childIndex;
+            }
             if(sideEffect==SideEffect){
-                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),true,this->lvaluelvl);
+                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),true,this->lvaluelvl, childIndex);
                 return SideEffect;
             }
             switch(parent->getStmtClass()){
             case Stmt::DeclRefExprClass:
-                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl);
+                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl, childIndex);
                 return Use;
             break;
             case Stmt::ImplicitCastExprClass:
-                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl);
+                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl,childIndex);
                 return Use;
             break;
             case Stmt::CallExprClass: // function implicitly has side effect on everything it can
                 if(this->lvaluelvl>0 && tmp != *(parent->child_begin())){ //FIXME: int i; int j = &i; works for f(&j) but not for f(j) (which should tag side effect for i)
                 this->lvaluelvl--;
-                    lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),true,this->lvaluelvl);
+                    lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),true,this->lvaluelvl, childIndex);
                     return SideEffect;
                 }
                 this->lvaluelvl--;
@@ -74,26 +82,26 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
                     this->lvaluelvl++;
                 }
                 if(static_cast<UnaryOperator*>(parent)->isIncrementDecrementOp()){
-                    lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),true,this->lvaluelvl);
+                    lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),true,this->lvaluelvl, childIndex);
                     return SideEffect;
                 }
-                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl);
+                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl, childIndex);
                 return Use;
             break;
             case Stmt::BinaryOperatorClass:
                 if(static_cast<BinaryOperator*>(parent)->isAssignmentOp() && tmp == *(parent->child_begin())){
-                    lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),true,this->lvaluelvl);
+                    lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),true,this->lvaluelvl, childIndex);
                     return SideEffect;
                 }
-                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl);
+                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl, childIndex);
                 return Use;
             break;
             case Stmt::CompoundAssignOperatorClass:
                 if(tmp == *(parent->child_begin())){
-                    lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),true,this->lvaluelvl);
+                    lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),true,this->lvaluelvl, childIndex);
                     return SideEffect;
                 }
-                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl);
+                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl, childIndex);
                 return Use;
             break;
             case Stmt::CompoundStmtClass:
@@ -105,14 +113,14 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
                 return None;
             break;
             case Stmt::ParenExprClass:
-                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl);
+                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl, childIndex);
                 return Use;
             break;
             case Stmt::ArraySubscriptExprClass:
-                if(tmp != *(parent->child_begin())){
+                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl, childIndex);
+                /*if(tmp != *(parent->child_begin())){ // FIXME: this might make sense for subscription as the value actually is dereferrenced, but it is also read and the * makes things harder (this is addressing the case arr[i] for i as it can be vice versa)
                     this->lvaluelvl--;
-                }
-                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl);
+                }*/
                 return Use;
             break;
             case Stmt::IfStmtClass:
@@ -120,7 +128,7 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
             case Stmt::SwitchStmtClass:
             case Stmt::BreakStmtClass:
             case Stmt::DoStmtClass:
-                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl);
+                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl, childIndex);
                 return Use;
             break;
             default:
@@ -128,7 +136,7 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
             }
             DE.Report(this->SPA_fallback) << parent->getStmtClassName();
             if(sideEffect == Use){//fallback action - this may lead to false positives
-                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl);
+                lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl, childIndex);
                 return Use;
             }
             return None;

@@ -4,5 +4,7 @@ if [[ ! -z $1 ]] ; then
 fi
 
 echo $file
-
+echo ------------
+cat ~/bc/new/llvm/tools/clang/tools/SPA/examples/$file
+echo ------------
 ~/bc/new/build/Release+Asserts/bin/clang -std=c11 -Wall -W -pedantic -g -Xclang -load -Xclang ~/bc/new/build/Release+Asserts/lib/libSPA.so -Xclang -add-plugin -Xclang SPA ~/bc/new/llvm/tools/clang/tools/SPA/examples/$file -o TEST;
