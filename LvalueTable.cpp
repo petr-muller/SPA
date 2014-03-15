@@ -20,6 +20,7 @@ class LvalueTable{
         std::map<clang::Stmt*, std::vector<Tag> > table;
         std::string printLvl(int lvaluelvl);
         clang::CompilerInstance &CI;
+        bool addConstraint(std::stringstream &stream, unsigned row, std::stringstream &var1, std::stringstream &var2, std::map<unsigned, std::map<std::string, std::map<std::string, bool> > > usedConstraints);
 
     public:
         LvalueTable(clang::CompilerInstance &CI): CI(CI){};
@@ -58,20 +59,33 @@ void LvalueTable::dump(){
     #endif
 }
 
+bool LvalueTable::addConstraint(std::stringstream &stream, unsigned row, std::stringstream &var1, std::stringstream &var2, std::map< unsigned, std::map<std::string, std::map<std::string, bool> > > usedConstraints){
+    if((!usedConstraints[row][var1.str()][var2.str()]) && (!usedConstraints[row][var2.str()][var1.str()])){
+        usedConstraints[row][var1.str()][var2.str()] = 1;
+        if(var1.str() == var2.str()){
+            stream << "{row: '" << row << "', undefined:'" << var1.str() << "'}";
+        }else{
+            stream << "{row: '" << row << "', var1: '" << var1.str() << "', var2: '" << var2.str() << "'}";
+        }
+        return true;
+    }
+    return false;
+}
+
 std::string LvalueTable::makeConstraints(){
     std::stringstream ret;
-    unsigned sideEffects = 0;
     unsigned row;
     std::map< unsigned, std::map<std::string, std::map<std::string, bool> > > usedConstraints;
     std::stringstream var1, var2;
     //bool skipFirstOccurenceOfSameObject = false;
-    ret << "The following is a set of constraints under which there was NO undefined behavior detected by the SPA:" << std::endl;
+    ret << "The following is a set of constraints under which there was undefined behavior detected by the SPA:" << std::endl << "{constraints: [" << std::endl;
     for(std::map<clang::Stmt*, std::vector<Tag> >::iterator i = this->table.begin(); i != this->table.end(); ++i){
         row = this->CI.getSourceManager().getSpellingLineNumber(i->first->getLocStart());
         switch(i->first->getStmtClass()){
 
         case clang::Stmt::CompoundStmtClass: // {}
         case clang::Stmt::ParenExprClass: // ()
+        case clang::Stmt::ConditionalOperatorClass: // ? :
         break;
 
         case clang::Stmt::BinaryOperatorClass:
@@ -99,13 +113,8 @@ std::string LvalueTable::makeConstraints(){
                                     continue;
                                 }
                             }*/
-                            if((!usedConstraints[row][var1.str()][var2.str()]) && (!usedConstraints[row][var2.str()][var1.str()])){
-                                usedConstraints[row][var1.str()][var2.str()] = 1;
-                                if(var1.str() == var2.str()){
-                                    ret << "row: '" << row << "', undefined='" << var1.str() << "'" << std::endl;
-                                }else{
-                                    ret << "row: '" << row << "', var1: '" << var1.str() << "', var2: '" << var2.str() << "'" << std::endl;
-                                }
+                            if(this->addConstraint(ret, row, var1, var2, usedConstraints)){
+                                ret << "," << std::endl;
                             }
                         }
                     }
@@ -113,37 +122,6 @@ std::string LvalueTable::makeConstraints(){
             }else{
                 goto defaultClass;
             }
-        break;
-
-        case clang::Stmt::ConditionalOperatorClass: // ? :
-            /*for(unsigned j=0; j<3; ++j){ //child node index
-                clang::Stmt::child_iterator children = i->first->child_begin();
-                std::vector<Tag> first_child = this->table[*(children)];
-                std::advance(children,j);
-                std::vector<Tag> other_child = this->table[*(children)];
-                for(std::vector<Tag>::iterator k=first_child.begin(); k!=first_child.end(); ++k){
-                    if(!k->sideEffect){
-                        continue;
-                    }
-                    for(std::vector<Tag>::iterator l=other_child.begin(); l!=other_child.end(); ++l){
-                        if(k==l){// FIXME -- this is fishy - comparing iterators from two different vectors
-                            continue;
-                        }
-                        var1 << this->printLvl(k->lvaluelvl) << k->D->getNameAsString();
-                        var2 << this->printLvl(l->lvaluelvl) << l->D->getNameAsString();
-                        if((!usedConstraints[row][var1.str()][var2.str()]) && (!usedConstraints[row][var2.str()][var1.str()])){
-                            usedConstraints[row][var1.str()][var2.str()] = 1;
-                            if(var1.str() == var2.str()){
-                                ret << "row: '" << row << "', undefined='" << var1.str() << "'" << std::endl;
-                            }else{
-                                ret << "row: '" << row << "', var1: '" << var1.str() << "', var2: '" << var2.str() << "'" << std::endl;
-                            }
-                        }
-                        var1.str("");
-                        var2.str("");
-                    }
-                }
-            }*/
         break;
 
         default:
@@ -162,21 +140,14 @@ std::string LvalueTable::makeConstraints(){
                     }
                     var1 << this->printLvl(j->lvaluelvl) << j->D->getNameAsString();
                     var2 << this->printLvl(k->lvaluelvl) << k->D->getNameAsString();
-                    if((!usedConstraints[row][var1.str()][var2.str()]) && (!usedConstraints[row][var2.str()][var1.str()])){
-                        usedConstraints[row][var1.str()][var2.str()] = 1;
-                        if(var1.str() == var2.str()){
-                            ret << "row: '" << row << "', undefined='" << var1.str() << "'" << std::endl;
-                        }else{
-                            ret << "row: '" << row << "', var1: '" << var1.str() << "', var2: '" << var2.str() << "'" << std::endl;
-                        }
-                    }
+                    this->addConstraint(ret, row, var1, var2, usedConstraints);
                     var1.str("");
                     var2.str("");
                 }
             }
         break;
         }
-        sideEffects = 0;
     }
+    ret << "]}" << std::endl;
     return ret.str();
 }

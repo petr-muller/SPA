@@ -1,6 +1,7 @@
 int main(){
-	int i = 0;
-	int *j = &i;
-	i = (*j)++; // !!!(A) -- assignment order is undefined
-    return i;
+    int i, *j, *k;
+    j=&i;
+    k=&i;
+    return i + *j + *k;
 }
+
