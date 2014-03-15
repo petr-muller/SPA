@@ -12,6 +12,7 @@
 #include "clang/Frontend/CompilerInstance.h"
 #include "llvm/Support/raw_ostream.h"
 #include "clang/AST/RecursiveASTVisitor.h"
+#include "clang/Frontend/CodeGenOptions.h"
 #include <iostream>
 #include <string>
 #include <fstream>
