@@ -1,7 +1,8 @@
-int main(){
-    int i, *j, *k;
-    j=&i;
-    k=&i;
-    return i + *j + *k;
-}
+#define MACRO i = (*j)++; // !!!(A) -- assignment order is undefined
 
+int main(){
+	int i = 0;
+	int *j = &i;
+    MACRO
+    return i;
+}

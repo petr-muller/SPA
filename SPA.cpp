@@ -1,4 +1,4 @@
-#define DBG
+//#define DBG
 #ifdef DBG
     #define DEBUG(str) std::cout << str << std::endl;
 #endif
@@ -203,7 +203,9 @@ class SPAConsumer : public clang::ASTConsumer {
         virtual void HandleTranslationUnit(clang::ASTContext &Context){
             //Visit all nodes in the AST
             Visitor.TraverseDecl(Context.getTranslationUnitDecl());
-            lvalueTable.dump();
+            #ifdef DBG
+                lvalueTable.dump();
+            #endif
             std::cout << lvalueTable.makeConstraints();
         }
 };
