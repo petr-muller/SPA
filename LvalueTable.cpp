@@ -124,6 +124,9 @@ std::string LvalueTable::makeConstraints(){
                                     continue;
                                 }
                             }*/
+                            if(k->lvaluelvl == 0 && l->lvaluelvl == 0 && var1.str() != var2.str()){//two non-pointers do not alias for sure
+                                continue;
+                            }
                             if(this->addConstraint(ret, row, col, var1, var2, usedConstraints)){
                                 #ifdef JSON
                                     ret << "," << std::endl;
@@ -150,7 +153,10 @@ std::string LvalueTable::makeConstraints(){
                     if(j->childIndex==k->childIndex){//do not iterate over self
                         continue;
                     }
-                    if(j==k){
+                    if(j==k){//FIXME is this necessary?
+                        continue;
+                    }
+                    if(j->lvaluelvl == 0 && k->lvaluelvl == 0 && var1.str() != var2.str()){//two non-pointers do not alias for sure
                         continue;
                     }
                     var1 << this->printLvl(j->lvaluelvl) << j->D->getNameAsString();

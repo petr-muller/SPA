@@ -18,8 +18,15 @@ clang -g3 -gcolumn-info -emit-llvm -c -o $file.bc $file.c -O0
 #alias analysis
 alias=$(opt -disable-output -basicaa --aa-eval -print-all-alias-modref-info $file.bc 2>&1 | grep -e 'MustAlias' -e 'MayAlias' | awk '{print $3 " " $5}' | sed 's/[%,]//g')
 
+#llvm ir with debug info
+llvmir=$(llvm-dis $file.bc -o - | grep ' !dbg !')
+
+
 echo Aliases:
 echo "$alias"
 echo
 echo Constraints:
 echo "$constraints"
+echo
+echo LLVM IR:
+echo "$llvmir"

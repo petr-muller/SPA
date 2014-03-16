@@ -61,8 +61,8 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
                 return Use;
             break;
             case Stmt::CallExprClass: // function implicitly has side effect on everything it can
-                if(this->lvaluelvl>0 && tmp != *(parent->child_begin())){ //FIXME: int i; int j = &i; works for f(&j) but not for f(j) (which should tag side effect for i)
-                this->lvaluelvl--;
+                if(this->lvaluelvl > 0 &&tmp != *(parent->child_begin())){ //FIXME: int i; int j = &i; works for f(&j) but not for f(j) (which should tag side effect for i)
+                    this->lvaluelvl--;
                     lvalueTable.set(parent,static_cast<DeclRefExpr*>(S),true,this->lvaluelvl, childIndex);
                     return SideEffect;
                 }
