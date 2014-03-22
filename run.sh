@@ -3,11 +3,6 @@ if [[ ! -z $1 ]] ; then
     file=$1
 fi
 
-#echo $file
-#echo ------------
-#cat ~/bc/new/llvm/tools/clang/tools/SPA/examples/$file.c
-#echo ------------
-
 #make constraints
 constraints=$(~/bc/new/build/Release+Asserts/bin/clang -std=c11 -Wall -W -pedantic -g -Xclang -load -Xclang ~/bc/new/build/Release+Asserts/lib/libSPA.so -Xclang -add-plugin -Xclang SPA ~/bc/new/llvm/tools/clang/tools/SPA/examples/$file.c -o TEST)
 
@@ -32,8 +27,9 @@ echo "$constraints"
 echo
 echo Translated aliases:
 
-echo "$aliases" | while read alias; do
-    #check whether both variables are in the same statement
+res=''
+
+while read alias; do
     var1=$(echo $alias | awk '{print $1}')
     var2=$(echo $alias | awk '{print $2}')
     if echo $var1 | grep '[0-9]\+' &>/dev/null; then dbg1=$(echo "$llvmir" | grep "[[:space:]]*%$var1 = .* !dbg ![0-9]\+"); dbg1=$(echo $dbg1 | awk '{print $NF}' | sed 's/!//g'); else dbg1='any'; fi
@@ -44,17 +40,20 @@ echo "$aliases" | while read alias; do
         else
             dbg=$dbg1;
         fi
-        echo "$llvmir" | grep "^!$dbg = metadata !{.*}" | awk '{print $5 " " $7}' | sed 's/,//g' | tr '\n' ' '
+        res="$res$(echo "$llvmir" | grep "^!$dbg = metadata !{.*}" | awk '{print $5 " " $7}' | sed 's/,//g' | tr '\n' ' ')"
         if [ $dbg1 = 'any' ]; then
-            printf "$var1 "
+            res="$res$(printf "$var1 ")"
         else
-            printf "%s" "$(echo "$llvmir" | grep "[[:space:]]*%$var1 = load [[:alnum:]]*\*\+ %[[:alnum:]]\+, ")" | awk '{print $4 $5}' | grep -o '\*\+.*' | sed 's/[%,]//g' | sed 's/^\*//g' | tr '\n' ' '
+            res="$res$(printf "%s" "$(echo "$llvmir" | grep "[[:space:]]*%$var1 = load [[:alnum:]]*\*\+ %[[:alnum:]]\+, ")" | awk '{print $4 $5}' | grep -o '\*\+.*' | sed 's/[%,]//g' | sed 's/^\*//g' | tr '\n' ' ')"
         fi
 
         if [ $dbg2 = 'any' ]; then
-            echo "$var2"
+            res="$res$(echo "$var2")"
         else
-            printf "%s" "$(echo "$llvmir" | grep "[[:space:]]*%$var2 = load [[:alnum:]]*\*\+ %[[:alnum:]]\+, ")" | awk '{print $4 $5}' | grep -o '\*\+.*' | sed 's/[%,]//g' | sed 's/^\*//g'
+            res="$res$(printf "%s" "$(echo "$llvmir" | grep "[[:space:]]*%$var2 = load [[:alnum:]]*\*\+ %[[:alnum:]]\+, ")" | awk '{print $4 $5}' | grep -o '\*\+.*' | sed 's/[%,]//g' | sed 's/^\*//g')"
         fi
+        res="$res"$'\n'
     fi
-done
+done <<< "$aliases"
+
+printf "%s" "$res"
