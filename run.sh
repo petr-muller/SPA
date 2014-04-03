@@ -11,11 +11,11 @@ if [[ ! -z $1 ]] ; then
 fi
 
 #make constraints
-constraints=$(~/bc/new/build/Release+Asserts/bin/clang -std=c11 -Wall -W -pedantic -g -Xclang -load -Xclang ~/bc/new/build/Release+Asserts/lib/libSPA.so -Xclang -add-plugin -Xclang SPA ~/bc/new/llvm/tools/clang/tools/SPA/examples/$file.c -o TEST)
+constraints=$(~/bc/new/build/Release+Asserts/bin/clang -std=c11 -Wall -W -pedantic -g -Xclang -load -Xclang ~/bc/new/build/Release+Asserts/lib/libSPA.so -Xclang -add-plugin -Xclang SPA ~/bc/new/llvm/tools/clang/tools/SPA/examples/$file.c -o TEST 2>/dev/null)
 
 #create the LLVM IR
 cd examples
-clang -g3 -gcolumn-info -emit-llvm -c -o $file.bc $file.c -O0
+clang -g3 -gcolumn-info -emit-llvm -c -o $file.bc $file.c -O0 2>/dev/null
 
 #alias analysis
 aliases=$(opt -disable-output -basicaa --aa-eval -print-all-alias-modref-info $file.bc 2>&1 | grep -e 'MustAlias' -e 'MayAlias' | awk '{print $3 " " $5}' | sed 's/[%,]//g')
@@ -53,6 +53,7 @@ while read alias; do
 done <<< "$aliases"
 translated="${translated%?}"
 
+<<debug
 echo LLVM IR:
 echo "$llvmir"
 echo
@@ -66,10 +67,16 @@ echo Translated aliases:
 echo "$translated"
 echo
 echo Results:
+debug
+
 while read constraint; do
-    while read Alias; do
-        if [ "$Alias" = "$constraint" ]; then
-            echo "Possible undefined behavior at [$(echo $Alias | awk '{print $1 "," $2}')] - \"$(echo $Alias | awk '{print $3}')\" aliases with \"$(echo $Alias | awk '{print $4}')\""
-        fi
-    done <<< "$translated"
+    if [ $(echo $constraint | wc -w) -eq 3 ]; then
+        echo "Possible undefined behavior at [$(echo $constraint | awk '{print $1 "," $2}')] - variable \"$(echo $constraint | awk '{print $3}')\""
+    else
+        while read Alias; do
+            if [ "$Alias" = "$constraint" ]; then
+                echo "Possible undefined behavior at [$(echo $constraint | awk '{print $1 "," $2}')] - \"$(echo $constraint | awk '{print $3}')\" aliases with \"$(echo $constraint | awk '{print $4}')\""
+            fi
+        done <<< "$translated"
+    fi
 done <<< "$constraints"
