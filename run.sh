@@ -68,7 +68,7 @@ echo "$translated"
 while read constraint; do
     while read Alias; do
         if [ "$Alias" = "$constraint" ]; then
-            echo CONSTRAINT \"$constraint\" VIOLATED
+            echo "Possible undefined behavior at [$(echo $Alias | awk '{print $1 $2}')]"
         fi
     done <<< "$translated"
 done <<< "$constraints"
