@@ -64,7 +64,8 @@ echo "$constraints"
 echo
 echo Translated aliases:
 echo "$translated"
-
+echo
+echo Results:
 while read constraint; do
     while read Alias; do
         if [ "$Alias" = "$constraint" ]; then
