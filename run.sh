@@ -68,7 +68,7 @@ echo "$translated"
 while read constraint; do
     while read Alias; do
         if [ "$Alias" = "$constraint" ]; then
-            echo "Possible undefined behavior at [$(echo $Alias | awk '{print $1 $2}')]"
+            echo "Possible undefined behavior at [$(echo $Alias | awk '{print $1 "," $2}')] - \"$(echo $Alias | awk '{print $3}')\" aliases with \"$(echo $Alias | awk '{print $4}')\""
         fi
     done <<< "$translated"
 done <<< "$constraints"
