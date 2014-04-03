@@ -1,3 +1,10 @@
+#!/usr/bin/env bash
+
+# Lukas Hellebrandt <xhelle04@fit.vutbr.cz>
+
+# This script is highly implementation- and version- dependant.
+# Its purpose is to get the set of constraints, set of aliases and check whether some of the constraints are violated. In that case, it found an undefined behavior.
+
 file=test1.c
 if [[ ! -z $1 ]] ; then
     file=$1
@@ -16,19 +23,8 @@ aliases=$(opt -disable-output -basicaa --aa-eval -print-all-alias-modref-info $f
 #llvm ir with debug info
 llvmir=$(llvm-dis $file.bc -o - | grep -e ' !dbg !' -e '![0-9]\+ = metadata !{')
 
-echo LLVM IR:
-echo "$llvmir"
-echo
-echo Aliases:
-echo "$aliases"
-echo
-echo Constraints:
-echo "$constraints"
-echo
-echo Translated aliases:
-
-res=''
-
+#translate the aliases - map them to the original source code
+translated=''
 while read alias; do
     var1=$(echo $alias | awk '{print $1}')
     var2=$(echo $alias | awk '{print $2}')
@@ -40,20 +36,39 @@ while read alias; do
         else
             dbg=$dbg1;
         fi
-        res="$res$(echo "$llvmir" | grep "^!$dbg = metadata !{.*}" | awk '{print $5 " " $7}' | sed 's/,//g' | tr '\n' ' ')"
+        translated="$translated$(echo "$llvmir" | grep "^!$dbg = metadata !{.*}" | awk '{print $5 " " $7}' | sed 's/,//g' | tr '\n' ' ')"
         if [ $dbg1 = 'any' ]; then
-            res="$res$(printf "$var1 ")"
+            translated="$translated$(printf "$var1 ")"
         else
-            res="$res$(printf "%s" "$(echo "$llvmir" | grep "[[:space:]]*%$var1 = load [[:alnum:]]*\*\+ %[[:alnum:]]\+, ")" | awk '{print $4 $5}' | grep -o '\*\+.*' | sed 's/[%,]//g' | sed 's/^\*//g' | tr '\n' ' ')"
+            translated="$translated$(printf "%s" "$(echo "$llvmir" | grep "[[:space:]]*%$var1 = load [[:alnum:]]*\*\+ %[[:alnum:]]\+, ")" | awk '{print $4 $5}' | grep -o '\*\+.*' | sed 's/[%,]//g' | sed 's/^\*//g' | tr '\n' ' ')"
         fi
 
         if [ $dbg2 = 'any' ]; then
-            res="$res$(echo "$var2")"
+            translated="$translated$(echo "$var2")"
         else
-            res="$res$(printf "%s" "$(echo "$llvmir" | grep "[[:space:]]*%$var2 = load [[:alnum:]]*\*\+ %[[:alnum:]]\+, ")" | awk '{print $4 $5}' | grep -o '\*\+.*' | sed 's/[%,]//g' | sed 's/^\*//g')"
+            translated="$translated$(printf "%s" "$(echo "$llvmir" | grep "[[:space:]]*%$var2 = load [[:alnum:]]*\*\+ %[[:alnum:]]\+, ")" | awk '{print $4 $5}' | grep -o '\*\+.*' | sed 's/[%,]//g' | sed 's/^\*//g')"
         fi
-        res="$res"$'\n'
+        translated="$translated"$'\n'
     fi
 done <<< "$aliases"
+translated="${translated%?}"
 
-printf "%s" "$res"
+echo LLVM IR:
+echo "$llvmir"
+echo
+echo Aliases:
+echo "$aliases"
+echo
+echo Constraints:
+echo "$constraints"
+echo
+echo Translated aliases:
+echo "$translated"
+
+while read constraint; do
+    while read Alias; do
+        if [ "$Alias" = "$constraint" ]; then
+            echo CONSTRAINT \"$constraint\" VIOLATED
+        fi
+    done <<< "$translated"
+done <<< "$constraints"
