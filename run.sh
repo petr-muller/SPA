@@ -53,7 +53,6 @@ while read alias; do
 done <<< "$aliases"
 translated="${translated%?}"
 
-<<debug
 echo LLVM IR:
 echo "$llvmir"
 echo
@@ -67,12 +66,14 @@ echo Translated aliases:
 echo "$translated"
 echo
 echo Results:
-debug
 
 while read constraint; do
     if [ $(echo $constraint | wc -w) -eq 3 ]; then
         echo "Possible undefined behavior at [$(echo $constraint | awk '{print $1 "," $2}')] - variable \"$(echo $constraint | awk '{print $3}')\""
     else
+        if [ $(echo $constraint | wc -w) -lt 3 ]; then
+            break
+        fi
         while read Alias; do
             if [ "$Alias" = "$constraint" ]; then
                 echo "Possible undefined behavior at [$(echo $constraint | awk '{print $1 "," $2}')] - \"$(echo $constraint | awk '{print $3}')\" aliases with \"$(echo $constraint | awk '{print $4}')\""
