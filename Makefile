@@ -1,30 +1,25 @@
-#===- examples/PrintFunctionNames/Makefile ----------------*- Makefile -*-===##
- 
-#                     The LLVM Compiler Infrastructure
-#
-# This file is distributed under the University of Illinois Open Source
-# License. See LICENSE.TXT for details.
-# 
-##===----------------------------------------------------------------------===##
+all: $(filter-out $(wildcard build), build)
+	cd build; \
+	make -j 8
 
-CLANG_LEVEL := ../..
-LIBRARYNAME = SPA
+build: llvm llvm/tools/clang/tools/SPA
+	mkdir -p build
+	cd build; \
+	../llvm/configure --enable-optimized
 
-SOURCES := SPA.cpp
+llvm/tools/clang/tools/SPA: llvm SPA
+	cp -r SPA llvm/tools/clang/tools
+	cp SPA/top-level-makefile/Makefile llvm/tools/clang/tools
 
-# If we don't need RTTI or EH, there's no reason to export anything
-# from the plugin.
-#ifneq ($(REQUIRES_RTTI), 1)
-#ifneq ($(REQUIRES_EH), 1)
-	#EXPORTED_SYMBOL_FILE = $(PROJ_SRC_DIR)/SPA.exports
-#endif
-#endif
+llvm:
+	svn co http://llvm.org/svn/llvm-project/llvm/trunk llvm;
+	cd llvm/tools; \
+	svn co http://llvm.org/svn/llvm-project/cfe/trunk clang; \
+	cd ../projects; \
+	svn co http://llvm.org/svn/llvm-project/compiler-rt/trunk compiler-rt ; \
 
-LINK_LIBS_IN_SHARED = 0
-SHARED_LIBRARY = 1
+clean:
+	rm -rf build
 
-include $(CLANG_LEVEL)/Makefile
-
-ifeq ($(OS),Darwin)
-	LDFLAGS=-Wl,-undefined,dynamic_lookup
-endif
+remove:
+	rm -rf build llvm
