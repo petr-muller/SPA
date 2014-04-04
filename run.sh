@@ -15,13 +15,13 @@ constraints=$(~/bc/new/build/Release+Asserts/bin/clang -std=c11 -Wall -W -pedant
 
 #create the LLVM IR
 cd examples
-clang -g3 -gcolumn-info -emit-llvm -c -o $file.bc $file.c -O0 2>/dev/null
+~/bc/new/build/Release+Asserts/bin/clang -g3 -gcolumn-info -emit-llvm -c -o $file.bc $file.c -O0 2>/dev/null
 
 #alias analysis
-aliases=$(opt -disable-output -basicaa --aa-eval -print-all-alias-modref-info $file.bc 2>&1 | grep -e 'MustAlias' -e 'MayAlias' | awk '{print $3 " " $5}' | sed 's/[%,]//g')
+aliases=$(~/bc/new/build/Release+Asserts/bin/opt -disable-output -basicaa --aa-eval -print-all-alias-modref-info $file.bc 2>&1 | grep -e 'MustAlias' -e 'MayAlias' | awk '{print $3 " " $5}' | sed 's/[%,]//g')
 
 #llvm ir with debug info
-llvmir=$(llvm-dis $file.bc -o - | grep -e ' !dbg !' -e '![0-9]\+ = metadata !{')
+llvmir=$(~/bc/new/build/Release+Asserts/bin/llvm-dis $file.bc -o - | grep -e ' !dbg !' -e '![0-9]\+ = metadata !{')
 
 #translate the aliases - map them to the original source code
 translated=''
