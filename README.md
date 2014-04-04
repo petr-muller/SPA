@@ -7,4 +7,4 @@ SPA is a project developed to address one type of undefined behavior in C langua
 
 *What is it good for and how can it be used?*
 
-SPA is a Clang plugin and a LLVM pass. The Clang plugin creates a set of rules regarding when the undefined behavior can occur and the LLVM pass then checks these rules. SPA will check your program for the addressed type of undefined behavior automatically and warn you, thus letting you fix them instead of letting them go wild.
+SPA is a Clang plugin (and a LLVM pass). The Clang plugin creates a set of rules regarding when the undefined behavior can occur and the LLVM pass then checks these rules. SPA will check your program for the addressed type of undefined behavior automatically and warn you, thus letting you fix them instead of letting them go wild.
