@@ -53,6 +53,7 @@ while read alias; do
 done <<< "$aliases"
 translated="${translated%?}"
 
+<<DEBUG
 echo LLVM IR:
 echo "$llvmir"
 echo
@@ -66,6 +67,7 @@ echo Translated aliases:
 echo "$translated"
 echo
 echo Results:
+DEBUG
 
 while read constraint; do
     if [ $(echo $constraint | wc -w) -eq 3 ]; then
