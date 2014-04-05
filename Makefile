@@ -21,6 +21,8 @@ llvm:
 	cd ../projects; \
 	svn co http://llvm.org/svn/llvm-project/compiler-rt/trunk compiler-rt ; \
 
+.PHONY: clean remove run debugrun
+
 clean:
 	rm -rf build
 
@@ -29,3 +31,6 @@ remove:
 
 run: run.sh
 	./run.sh
+
+debugrun: debugrun.sh
+	./debugrun.sh

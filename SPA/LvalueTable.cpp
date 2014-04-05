@@ -12,9 +12,10 @@ class LvalueTable{
             public:
                 clang::NamedDecl *D;
                 bool sideEffect;
+                bool isRestrict;
                 int lvaluelvl;
                 int childIndex;
-                Tag(clang::NamedDecl *D, bool sideEffect, int lvaluelvl, int childIndex): D(D), sideEffect(sideEffect), lvaluelvl(lvaluelvl), childIndex(childIndex){};
+                Tag(clang::NamedDecl *D, bool sideEffect, bool isRestrict, int lvaluelvl, int childIndex): D(D), sideEffect(sideEffect), isRestrict(isRestrict), lvaluelvl(lvaluelvl), childIndex(childIndex){};
         };
 
         std::map<clang::Stmt*, std::vector<Tag> > table;
@@ -41,7 +42,7 @@ std::string LvalueTable::printLvl(int lvaluelvl){
 bool LvalueTable::set(clang::Stmt *S, clang::DeclRefExpr *D, bool sideEffect, int lvaluelvl, int childIndex){
     //DEBUG("Adding Lvalue " << this->printLvl(lvaluelvl) << D->getDecl()->getNameAsString() << " " << (sideEffect ? "WITH" : "WITHOUT") << " side effect to statement " << S << " (" << S->getStmtClassName() << ")");
     //this->table[S][D->getDecl()] = this->table[S][D->getDecl()] || sideEffect;
-    Tag tag(D->getDecl(),sideEffect,lvaluelvl, childIndex);
+    Tag tag(D->getDecl(),sideEffect,D->getType().getQualifiers().hasRestrict(),lvaluelvl, childIndex);
     this->table[S].push_back(tag);
     return true;
 }
@@ -92,6 +93,7 @@ std::string LvalueTable::makeConstraints(){
     for(std::map<clang::Stmt*, std::vector<Tag> >::iterator i = this->table.begin(); i != this->table.end(); ++i){
         row = this->CI.getSourceManager().getExpansionLineNumber(i->first->getLocStart());
         col = this->CI.getSourceManager().getExpansionColumnNumber(i->first->getLocStart());
+
         switch(i->first->getStmtClass()){
 
         case clang::Stmt::CompoundStmtClass: // {}
@@ -125,6 +127,9 @@ std::string LvalueTable::makeConstraints(){
                                 }
                             }*/
                             if(k->lvaluelvl == 0 && l->lvaluelvl == 0 && var1.str() != var2.str()){//two non-pointers do not alias for sure
+                                continue;
+                            }
+                            if(k->isRestrict && l->isRestrict && var1.str()!=var2.str()){//two different "restrict" variables do not alias for sure
                                 continue;
                             }
                             if(this->addConstraint(ret, row, col, var1, var2, usedConstraints)){
