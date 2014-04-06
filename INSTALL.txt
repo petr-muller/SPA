@@ -1,3 +1,3 @@
 Copy Makefile together with the SPA directory to the directory desired to download sources and compile the SPA.
 Run make in that directory.
-Run SPA by running "run.sh <path/to/file.c>" or "make run" to just test on one of the examples.
+Run SPA by running "run.sh <path/to/file.c>" in this directory or "make run" to just test on one of the examples.
