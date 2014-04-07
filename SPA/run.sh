@@ -16,7 +16,7 @@ fi
 file=${file%.*}
 
 #make constraints
-constraints=$(build/Release+Asserts/bin/clang -std=c11 -Wall -W -pedantic -g -Xclang -load -Xclang build/Release+Asserts/lib/libSPA.so -Xclang -add-plugin -Xclang SPA ${file}.c -o TEST 2>/dev/null)
+constraints=$(build/Release+Asserts/bin/clang -std=c11 -Wall -W -pedantic -g -Xclang -load -Xclang build/Release+Asserts/lib/libSPA.so -Xclang -add-plugin -Xclang SPA ${file}.c -o TEST)
 
 #create the LLVM IR
 build/Release+Asserts/bin/clang -g3 -gcolumn-info -emit-llvm -c -o ${file}.bc ${file}.c -O0 2>/dev/null

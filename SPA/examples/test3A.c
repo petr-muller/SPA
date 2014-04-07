@@ -14,6 +14,9 @@ int f(int a, int b){
 
 int main(void){
     int i, j = 1;
-    j = f(a(&i), b(&i)); // !!! (A) -- this is NOT a "comma" OPERATOR
+    int *k, *l;
+    k = &i;
+    l = &i;
+    j = f(a(k), b(l)); // !!! (A) -- this is NOT a "comma" OPERATOR
     return j;
 }
