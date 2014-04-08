@@ -13,6 +13,6 @@ int main(){
     int *j, *k;
     j = &i;
     k = &i;
-    i = f(j) + g(j); // !!! (A)
+    i = f(j) + g(k); // !!! (A)
     return i;
 }
