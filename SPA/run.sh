@@ -45,8 +45,6 @@ while read alias; do
             translated="$translated$(printf "$var1 ")"
         else
             translated="$translated$(printf "%s" "$(echo "$llvmir" | grep "[[:space:]]*%$var1 = load [[:alnum:]]*\*\+ %[[:alpha:]][[:alnum:]]*, ")" | awk '{print $4 $5}' | grep -o '\*\+.*' | sed 's/[%,]//g' | sed 's/^\*//g' | tr '\n' ' ')"
-          echo "$translated"
-          echo ">>>>>"
         fi
 
         if [ $dbg2 = 'any' ]; then
