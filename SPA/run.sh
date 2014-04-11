@@ -34,7 +34,7 @@ while read alias; do
     var2=$(echo $alias | awk '{print $2}')
     if echo $var1 | grep '^[0-9]\+$' &>/dev/null; then dbg1=$(echo "$llvmir" | grep "[[:space:]]*%$var1 = .* !dbg ![0-9]\+"); dbg1=$(echo $dbg1 | awk '{print $NF}' | sed 's/!//g'); else dbg1='any'; fi
     if echo $var2 | grep '^[0-9]\+$' &>/dev/null; then dbg2=$(echo "$llvmir" | grep "[[:space:]]*%$var2 = .* !dbg ![0-9]\+"); dbg2=$(echo $dbg2 | awk '{print $NF}' | sed 's/!//g'); else dbg2='any'; fi
-    if [ $dbg1 = 'any' -o $dbg2 = 'any' -o $dbg1 = $dbg2 ]; then
+    if [ $dbg1 = 'any' -o $dbg2 = 'any' -o $dbg1 = $dbg2 -o 1 -eq 1 ]; then
         if [ $dbg1 = 'any' ]; then
             dbg=$dbg2;
         else
@@ -50,7 +50,7 @@ while read alias; do
         if [ $dbg2 = 'any' ]; then
             translated="$translated$(echo "$var2")"
         else
-            translated="$translated$(printf "%s" "$(echo "$llvmir" | grep "[[:space:]]*%$var2 = load [[:alnum:]]*\*\+ %[[:alnum:]]\+, ")" | awk '{print $4 $5}' | grep -o '\*\+.*' | sed 's/[%,]//g' | sed 's/^\*//g')"
+            translated="$translated$(printf "%s" "$(echo "$llvmir" | grep "[[:space:]]*%$var2 = load [[:alnum:]]*\*\+ %[[:alpha:]][[:alnum:]]*, ")" | awk '{print $4 $5}' | grep -o '\*\+.*' | sed 's/[%,]//g' | sed 's/^\*//g')"
         fi
         translated="$translated"$'\n'
     fi
