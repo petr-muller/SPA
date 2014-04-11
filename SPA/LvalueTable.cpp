@@ -8,6 +8,10 @@
 
 class LvalueTable{
     private:
+        typedef struct coords{
+          unsigned row;
+          unsigned col;
+        } coords;
         class Tag{
             public:
                 clang::NamedDecl *D;
@@ -21,7 +25,7 @@ class LvalueTable{
         std::map<clang::Stmt*, std::vector<Tag> > table;
         std::string printLvl(int lvaluelvl);
         clang::CompilerInstance &CI;
-        bool addConstraint(std::stringstream &stream, unsigned row, unsigned col, std::stringstream &var1, std::stringstream &var2, std::map<unsigned, std::map<std::string, std::map<std::string, bool> > > usedConstraints);
+        bool addConstraint(std::stringstream &stream, coords start, coords end, std::stringstream &var1, std::stringstream &var2, std::map<unsigned, std::map<std::string, std::map<std::string, bool> > > usedConstraints);
 
     public:
         LvalueTable(clang::CompilerInstance &CI): CI(CI){};
@@ -60,20 +64,20 @@ void LvalueTable::dump(){
     #endif
 }
 
-bool LvalueTable::addConstraint(std::stringstream &stream, unsigned row, unsigned col, std::stringstream &var1, std::stringstream &var2, std::map< unsigned, std::map<std::string, std::map<std::string, bool> > > usedConstraints){
-    if((!usedConstraints[row][var1.str()][var2.str()]) && (!usedConstraints[row][var2.str()][var1.str()])){
-        usedConstraints[row][var1.str()][var2.str()] = 1;
+bool LvalueTable::addConstraint(std::stringstream &stream, coords start, coords end, std::stringstream &var1, std::stringstream &var2, std::map< unsigned, std::map<std::string, std::map<std::string, bool> > > usedConstraints){
+    if((!usedConstraints[start.row][var1.str()][var2.str()]) && (!usedConstraints[start.row][var2.str()][var1.str()])){
+        usedConstraints[start.row][var1.str()][var2.str()] = 1;
         if(var1.str() == var2.str()){
             #ifdef JSON
-                stream << "{row: '" << row << "', col: '" << col << "',  undefined:'" << var1.str() << "'}";
+                stream << "{row: '" << start.row << "', col: '" << start.col << "',  undefined:'" << var1.str() << "'}";
             #else
-                stream << row << " " << col << " " << var1.str();
+                stream << start.row << " " << start.col << " " << end.row << " " << end.col << " " << var1.str();
             #endif
         }else{
             #ifdef JSON
-                stream << "{row: '" << row << "', col: '" << col << "', var1: '" << var1.str() << "', var2: '" << var2.str() << "'}";
+                stream << "{row: '" << start.row << "', col: '" << start.col << "', var1: '" << var1.str() << "', var2: '" << var2.str() << "'}";
             #else
-                stream << row << " " << col << " " << var1.str() << " " << var2.str();
+                stream << start.row << " " << start.col << " " << end.row << " " << end.col << " " << var1.str() << " " << var2.str();
             #endif
         }
         return true;
@@ -83,7 +87,7 @@ bool LvalueTable::addConstraint(std::stringstream &stream, unsigned row, unsigne
 
 std::string LvalueTable::makeConstraints(){
     std::stringstream ret;
-    unsigned row, col;
+    coords start, end;
     std::map< unsigned, std::map<std::string, std::map<std::string, bool> > > usedConstraints;
     std::stringstream var1, var2;
     //bool skipFirstOccurenceOfSameObject = false;
@@ -91,8 +95,10 @@ std::string LvalueTable::makeConstraints(){
         ret << "The following is a set of constraints under which there was undefined behavior detected by the SPA:" << std::endl << "{constraints: [" << std::endl;
     #endif
     for(std::map<clang::Stmt*, std::vector<Tag> >::iterator i = this->table.begin(); i != this->table.end(); ++i){
-        row = this->CI.getSourceManager().getExpansionLineNumber(i->first->getLocStart());
-        col = this->CI.getSourceManager().getExpansionColumnNumber(i->first->getLocStart());
+        start.row = this->CI.getSourceManager().getExpansionLineNumber(i->first->getLocStart());
+        start.col = this->CI.getSourceManager().getExpansionColumnNumber(i->first->getLocStart());
+        end.row = this->CI.getSourceManager().getExpansionLineNumber(i->first->getLocEnd());
+        end.col = this->CI.getSourceManager().getExpansionColumnNumber(i->first->getLocEnd());
 
         switch(i->first->getStmtClass()){
 
@@ -132,7 +138,7 @@ std::string LvalueTable::makeConstraints(){
                             if(k->isRestrict && l->isRestrict && var1.str()!=var2.str()){//two different "restrict" variables do not alias for sure
                                 continue;
                             }
-                            if(this->addConstraint(ret, row, col, var1, var2, usedConstraints)){
+                            if(this->addConstraint(ret, start, end, var1, var2, usedConstraints)){
                                 #ifdef JSON
                                     ret << "," << std::endl;
                                 #else
@@ -171,7 +177,7 @@ std::string LvalueTable::makeConstraints(){
                     var2.str("");
                     var1 << this->printLvl(j->lvaluelvl) << j->D->getNameAsString();
                     var2 << this->printLvl(k->lvaluelvl) << k->D->getNameAsString();
-                    if(this->addConstraint(ret, row, col, var1, var2, usedConstraints)){
+                    if(this->addConstraint(ret, start, end, var1, var2, usedConstraints)){
                         #ifdef JSON
                             ret << "," << std::endl;
                         #else
