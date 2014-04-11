@@ -87,7 +87,7 @@ std::string LvalueTable::makeConstraints(){
     std::map< unsigned, std::map<std::string, std::map<std::string, bool> > > usedConstraints;
     std::stringstream var1, var2;
     //bool skipFirstOccurenceOfSameObject = false;
-    #ifdef DBG
+    #ifdef JSON
         ret << "The following is a set of constraints under which there was undefined behavior detected by the SPA:" << std::endl << "{constraints: [" << std::endl;
     #endif
     for(std::map<clang::Stmt*, std::vector<Tag> >::iterator i = this->table.begin(); i != this->table.end(); ++i){
@@ -167,6 +167,8 @@ std::string LvalueTable::makeConstraints(){
                     if(j->isRestrict && k->isRestrict && var1.str()!=var2.str()){//two different "restrict" variables do not alias for sure
                         continue;
                     }
+                    var1.str("");
+                    var2.str("");
                     var1 << this->printLvl(j->lvaluelvl) << j->D->getNameAsString();
                     var2 << this->printLvl(k->lvaluelvl) << k->D->getNameAsString();
                     if(this->addConstraint(ret, row, col, var1, var2, usedConstraints)){
@@ -176,8 +178,6 @@ std::string LvalueTable::makeConstraints(){
                             ret << std::endl;
                         #endif
                     }
-                    var1.str("");
-                    var2.str("");
                 }
             }
         break;
