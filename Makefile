@@ -1,4 +1,4 @@
-all: build run.sh
+all: build run.sh debugrun.sh
 	cd build; \
 	make -j 8
 
@@ -6,6 +6,9 @@ build: llvm llvm/tools/clang/tools/SPA
 	mkdir -p build
 	cd build; \
 	../llvm/configure --enable-optimized
+
+debugrun.sh: run.sh
+	sed -e 's/^<<DEBUG/#<<DEBUG/g' -e 's/^DEBUG/#DEBUG/g' run.sh > debugrun.sh
 
 run.sh: SPA/run.sh
 	cp SPA/run.sh .
