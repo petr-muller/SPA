@@ -22,7 +22,7 @@ function get_function_names {
     name=$(echo "$row" | awk '{print $1}')
     present=1
     for tmp_name in $names; do
-      if [ "$tmp_name" == "$name" ]; then
+      if [ "$tmp_name" = "$name" ]; then
         present=0
       fi
     done
@@ -31,6 +31,37 @@ function get_function_names {
     fi
   done
   echo $names
+}
+
+function get_function_llvmir {
+  input=$(cat -)
+  ret=$(echo "$input" | tail -n +$(echo "$input" | grep -n "^define [^[:space:]]\+ @$1(.\+" | cut -d':' -f1))
+  state=0 #no function matched
+  while IFS= read row; do
+    echo "$row" | grep -q '^define [^[:space:]]\+ @[^[:space:]]\+(.\+'
+    if [ $? -eq 0 ]; then
+      if [ $state -eq 0 ]; then
+        tmp="$tmp"$'\n'"$row"
+        state=1 #first function header printed
+      else
+        state=2 #skip all the following functions
+      fi
+    fi
+
+    echo "$row" | grep -q '^[[:space:]]'
+    if [ $? -eq 0 ]; then
+      if [ $state -eq 1 ]; then
+        tmp="$tmp"$'\n'"$row"
+      fi
+    fi
+
+    echo "$row" | grep -q '^![0-9]\+ = '
+    if [ $? -eq 0 ]; then
+      tmp="$tmp"$'\n'"$row"
+    fi
+  done <<< "$ret"
+  ret="$tmp"
+  echo "$ret"
 }
 
 file=llvm/tools/clang/tools/SPA/examples/test2.c
@@ -55,11 +86,9 @@ llvmir=$(build/Release+Asserts/bin/llvm-dis ${file}.bc -o - | grep -e '^define [
 
 function_names=$(echo "$aliases" | get_function_names)
 
-echo $function_names
-
 for function_name in $function_names; do #translate for each function separately
   function_aliases=$(echo "$aliases" | grep "^$function_name")
-  function_llvmir=$(echo "$llvmir")
+  function_llvmir=$(echo "$llvmir" | get_function_llvmir $function_name)
 
   #translate the aliases - map them to the original source code
   while read alias; do
@@ -67,29 +96,29 @@ for function_name in $function_names; do #translate for each function separately
       var2=$(echo $alias | awk '{print $3}')
       if echo $var1 | grep '^[0-9]\+$' &>/dev/null; then dbg1=$(echo "$function_llvmir" | grep "[[:space:]]*%$var1 = .* !dbg ![0-9]\+"); dbg1=$(echo $dbg1 | awk '{print $NF}' | sed 's/!//g'); else dbg1='any'; fi
       if echo $var2 | grep '^[0-9]\+$' &>/dev/null; then dbg2=$(echo "$function_llvmir" | grep "[[:space:]]*%$var2 = .* !dbg ![0-9]\+"); dbg2=$(echo $dbg2 | awk '{print $NF}' | sed 's/!//g'); else dbg2='any'; fi
-      if [ $dbg1 = 'any' -o $dbg2 = 'any' -o $dbg1 = $dbg2 -o 1 -eq 1 ]; then #FIXME 1==1
-          if [ $dbg1 = 'any' ]; then
+      if [ "$dbg1" = 'any' -o "$dbg2" = 'any' -o "$dbg1" = "$dbg2" -o 1 -eq 1 ]; then #FIXME 1==1
+          if [ "$dbg1" = 'any' ]; then
               dbg=$dbg2;
           else
               dbg=$dbg1;
           fi
           translated="$translated$(echo "$function_llvmir" | grep "^!$dbg = metadata !{.*}" | awk '{print $5 " " $7}' | sed 's/,//g' | tr '\n' ' ')"
-          if [ $dbg1 = 'any' ]; then
+          if [ "$dbg1" = 'any' ]; then
               translated="$translated$(printf "$var1 ")"
           else
-              translated="$translated$(printf "%s" "$(echo "$function_llvmir" | grep "[[:space:]]*%$var1 = load [_[:alnum:]]*\*\+ %[_[:alpha:]][_[:alnum:]]*, ")" | awk '{print $4 $5}' | grep -o '\*\+.*' | sed 's/[%,]//g' | sed 's/^\*//g' | tr '\n' ' ')"
+              translated="$translated$(printf "%s" "$(echo "$function_llvmir" | grep "[[:space:]]*%$var1 = load [_[:alnum:]]*\*\+ %[_[:alpha:]][_[:alnum:]]*")" | awk '{print $4 $5}' | grep -o '\*\+.*' | sed 's/[%,]//g' | sed 's/^\*//g' | tr '\n' ' ')"
           fi
 
-          if [ $dbg2 = 'any' ]; then
-              translated="$translated$(echo "$var2")"
+          if [ "$dbg2" = 'any' ]; then
+              translated="$translated$(printf "%s" "$var2")"
           else
-              translated="$translated$(printf "%s" "$(echo "$function_llvmir" | grep "[[:space:]]*%$var2 = load [_[:alnum:]]*\*\+ %[_[:alpha:]][[_:alnum:]]*, ")" | awk '{print $4 $5}' | grep -o '\*\+.*' | sed 's/[%,]//g' | sed 's/^\*//g')"
+              translated="$translated$(printf "%s" "$(echo "$function_llvmir" | grep "[[:space:]]*%$var2 = load [_[:alnum:]]*\*\+ %[_[:alpha:]][_[:alnum:]]*")" | awk '{print $4 $5}' | grep -o '\*\+.*' | sed 's/[%,]//g' | sed 's/^\*//g')"
           fi
           translated="$translated"$'\n'
       fi
   done <<< "$function_aliases"
-  translated="${translated%?}"
 done
+translated="${translated%?}"
 
 #<<DEBUG
 echo LLVM IR:
