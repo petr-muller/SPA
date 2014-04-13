@@ -160,11 +160,9 @@ for function_name in $function_names; do
                   col1A=$(echo "$Alias" | awk '{print $3}')
                   row2A=$(echo "$Alias" | awk '{print $4}')
                   col2A=$(echo "$Alias" | awk '{print $5}')
-                  row1C=$(echo "$constraint" | awk '{print $2}')
-                  col1C=$(echo "$constraint" | awk '{print $3}')
                   row2C=$(echo "$constraint" | awk '{print $4}')
                   col2C=$(echo "$constraint" | awk '{print $5}')
-                  if [ "$row1A" = "any" ] || [ $row1A -le $row1C -a $col1A -le $col1C ]; then
+                  if [ "$row1A" = "any" ] || [ $row1A -le $row2C -a $col1A -le $col2C ]; then
                     if [ "$row2A" = "any" ] || [ $row2A -le $row2C -a $col2A -le $col2C ]; then
                       echo "Possible undefined behavior in function \"$(echo $constraint | awk '{print $1}')\" at [$(echo $constraint | awk '{print $2 "," $3}')] - \"$(echo $constraint | awk '{print $6}')\" aliases with \"$(echo $constraint | awk '{print $7}')\""
                     fi
