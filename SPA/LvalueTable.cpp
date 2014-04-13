@@ -14,22 +14,23 @@ class LvalueTable{
         } coords;
         class Tag{
             public:
+                clang::NamedDecl *F;
                 clang::NamedDecl *D;
                 bool sideEffect;
                 bool isRestrict;
                 int lvaluelvl;
                 int childIndex;
-                Tag(clang::NamedDecl *D, bool sideEffect, bool isRestrict, int lvaluelvl, int childIndex): D(D), sideEffect(sideEffect), isRestrict(isRestrict), lvaluelvl(lvaluelvl), childIndex(childIndex){};
+                Tag(clang::NamedDecl *F, clang::NamedDecl *D, bool sideEffect, bool isRestrict, int lvaluelvl, int childIndex): F(F), D(D), sideEffect(sideEffect), isRestrict(isRestrict), lvaluelvl(lvaluelvl), childIndex(childIndex){};
         };
 
         std::map<clang::Stmt*, std::vector<Tag> > table;
         std::string printLvl(int lvaluelvl);
         clang::CompilerInstance &CI;
-        bool addConstraint(std::stringstream &stream, coords start, coords end, std::stringstream &var1, std::stringstream &var2, std::map<unsigned, std::map<std::string, std::map<std::string, bool> > > usedConstraints);
+        bool addConstraint(std::stringstream &stream, std::string function, coords start, coords end, std::stringstream &var1, std::stringstream &var2, std::map<unsigned, std::map<std::string, std::map<std::string, bool> > > usedConstraints);
 
     public:
         LvalueTable(clang::CompilerInstance &CI): CI(CI){};
-        bool set(clang::Stmt *S, clang::DeclRefExpr *D, bool sideEffect, int lvaluelvl, int childIndex);
+        bool set(clang::NamedDecl *F, clang::Stmt *S, clang::DeclRefExpr *D, bool sideEffect, int lvaluelvl, int childIndex);
         void dump();
         std::string makeConstraints();
 };
@@ -43,10 +44,10 @@ std::string LvalueTable::printLvl(int lvaluelvl){
     return std::string(lvaluelvl,symbol);
 }
 
-bool LvalueTable::set(clang::Stmt *S, clang::DeclRefExpr *D, bool sideEffect, int lvaluelvl, int childIndex){
-    //DEBUG("Adding Lvalue " << this->printLvl(lvaluelvl) << D->getDecl()->getNameAsString() << " " << (sideEffect ? "WITH" : "WITHOUT") << " side effect to statement " << S << " (" << S->getStmtClassName() << ")");
+bool LvalueTable::set(clang::NamedDecl *F, clang::Stmt *S, clang::DeclRefExpr *D, bool sideEffect, int lvaluelvl, int childIndex){
+    DEBUG("Adding Lvalue " << this->printLvl(lvaluelvl) << D->getDecl()->getNameAsString() << " " << (sideEffect ? "WITH" : "WITHOUT") << " side effect to statement " << S << " (" << S->getStmtClassName() << ")");
     //this->table[S][D->getDecl()] = this->table[S][D->getDecl()] || sideEffect;
-    Tag tag(D->getDecl(),sideEffect,D->getType().getQualifiers().hasRestrict(),lvaluelvl, childIndex);
+    Tag tag(F, D->getDecl(),sideEffect,D->getType().getQualifiers().hasRestrict(),lvaluelvl, childIndex);
     this->table[S].push_back(tag);
     return true;
 }
@@ -64,20 +65,20 @@ void LvalueTable::dump(){
     #endif
 }
 
-bool LvalueTable::addConstraint(std::stringstream &stream, coords start, coords end, std::stringstream &var1, std::stringstream &var2, std::map< unsigned, std::map<std::string, std::map<std::string, bool> > > usedConstraints){
+bool LvalueTable::addConstraint(std::stringstream &stream, std::string function, coords start, coords end, std::stringstream &var1, std::stringstream &var2, std::map< unsigned, std::map<std::string, std::map<std::string, bool> > > usedConstraints){
     if((!usedConstraints[start.row][var1.str()][var2.str()]) && (!usedConstraints[start.row][var2.str()][var1.str()])){
         usedConstraints[start.row][var1.str()][var2.str()] = 1;
         if(var1.str() == var2.str()){
             #ifdef JSON
                 stream << "{row: '" << start.row << "', col: '" << start.col << "',  undefined:'" << var1.str() << "'}";
             #else
-                stream << start.row << " " << start.col << " " << end.row << " " << end.col << " " << var1.str();
+                stream << function << " " << start.row << " " << start.col << " " << end.row << " " << end.col << " " << var1.str();
             #endif
         }else{
             #ifdef JSON
                 stream << "{row: '" << start.row << "', col: '" << start.col << "', var1: '" << var1.str() << "', var2: '" << var2.str() << "'}";
             #else
-                stream << start.row << " " << start.col << " " << end.row << " " << end.col << " " << var1.str() << " " << var2.str();
+                stream << function << " " << start.row << " " << start.col << " " << end.row << " " << end.col << " " << var1.str() << " " << var2.str();
             #endif
         }
         return true;
@@ -138,7 +139,7 @@ std::string LvalueTable::makeConstraints(){
                             if(k->isRestrict && l->isRestrict && var1.str()!=var2.str()){//two different "restrict" variables do not alias for sure
                                 continue;
                             }
-                            if(this->addConstraint(ret, start, end, var1, var2, usedConstraints)){
+                            if(this->addConstraint(ret, k->F->getNameAsString(), start, end, var1, var2, usedConstraints)){
                                 #ifdef JSON
                                     ret << "," << std::endl;
                                 #else
@@ -177,7 +178,7 @@ std::string LvalueTable::makeConstraints(){
                     var2.str("");
                     var1 << this->printLvl(j->lvaluelvl) << j->D->getNameAsString();
                     var2 << this->printLvl(k->lvaluelvl) << k->D->getNameAsString();
-                    if(this->addConstraint(ret, start, end, var1, var2, usedConstraints)){
+                    if(this->addConstraint(ret, j->F->getNameAsString(), start, end, var1, var2, usedConstraints)){
                         #ifdef JSON
                             ret << "," << std::endl;
                         #else
