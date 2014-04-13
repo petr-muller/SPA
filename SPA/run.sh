@@ -129,7 +129,7 @@ for function_name in $function_names; do #translate for each function separately
 done
 translated="${translated%?}"
 
-#<<DEBUG
+<<DEBUG
 echo LLVM IR:
 echo "$llvmir"
 echo
@@ -143,7 +143,7 @@ echo Translated aliases:
 echo "$translated"
 echo
 echo Results:
-#DEBUG
+DEBUG
 
 for function_name in $function_names; do
   while read constraint; do
