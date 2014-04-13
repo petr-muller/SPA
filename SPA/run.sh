@@ -148,7 +148,7 @@ echo Results:
 for function_name in $function_names; do
   while read constraint; do
       if [ $(echo $constraint | wc -w) -eq 6 ]; then
-          echo "Possible undefined behavior at [$(echo $constraint | awk '{print $2 "," $3}')] - variable \"$(echo $constraint | awk '{print $6}')\""
+          echo "Possible undefined behavior in function \"$(echo $constraint | awk '{print $1}')\" at [$(echo $constraint | awk '{print $2 "," $3}')] - variable \"$(echo $constraint | awk '{print $6}')\""
       else
           if [ $(echo $constraint | wc -w) -lt 3 ]; then
               break
@@ -156,7 +156,19 @@ for function_name in $function_names; do
           while read Alias; do
               
               if [ "$(echo "$Alias" | awk '{print $6 $7}')" = "$(echo "$constraint" | awk '{print $6 $7}')" -o "$(echo "$Alias" | awk '{print $6 $7}')" = "$(echo "$constraint" | awk '{print $7 $6}')" ]; then
-                  echo "Possible undefined behavior at [$(echo $constraint | awk '{print $2 "," $3}')] - \"$(echo $constraint | awk '{print $6}')\" aliases with \"$(echo $constraint | awk '{print $7}')\""
+                  row1A=$(echo "$Alias" | awk '{print $2}')
+                  col1A=$(echo "$Alias" | awk '{print $3}')
+                  row2A=$(echo "$Alias" | awk '{print $4}')
+                  col2A=$(echo "$Alias" | awk '{print $5}')
+                  row1C=$(echo "$constraint" | awk '{print $2}')
+                  col1C=$(echo "$constraint" | awk '{print $3}')
+                  row2C=$(echo "$constraint" | awk '{print $4}')
+                  col2C=$(echo "$constraint" | awk '{print $5}')
+                  if [ $row1A -le $row1C -a $col1A -le $col1C -o "$row1A" = "any" ]; then
+                    if [ $row2A -le $row2C -a $col2A -le $col2C -o "$row2A" = "any" ]; then
+                      echo "Possible undefined behavior in function \"$(echo $constraint | awk '{print $1}')\" at [$(echo $constraint | awk '{print $2 "," $3}')] - \"$(echo $constraint | awk '{print $6}')\" aliases with \"$(echo $constraint | awk '{print $7}')\""
+                    fi
+                  fi
               fi
           done <<< "$(echo "$translated" | grep "^$function_name ")"
       fi
