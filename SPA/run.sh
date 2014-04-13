@@ -103,12 +103,12 @@ for function_name in $function_names; do #translate for each function separately
           translated="$translated$function_name " # function name
 
           if [ "$dbg1" = 'any' ]; then # position of var1
-              translated="${translated}any "
+              translated="${translated}any any "
           else
               translated="$translated$(echo "$function_llvmir" | grep "^!$dbg1 = metadata !{.*}" | awk '{print $5 " " $7}' | sed 's/,//g' | tr '\n' ' ')"
           fi
           if [ "$dbg2" = 'any' ]; then # position of var2
-              translated="${translated}any "
+              translated="${translated}any any "
           else
               translated="$translated$(echo "$function_llvmir" | grep "^!$dbg2 = metadata !{.*}" | awk '{print $5 " " $7}' | sed 's/,//g' | tr '\n' ' ')"
           fi
@@ -155,8 +155,8 @@ for function_name in $function_names; do
           fi
           while read Alias; do
               
-              if [ "$Alias" = "$constraint" -o "$Alias" = "$(echo $constraint | awk '{print $1, $2, $4, $3}')" ]; then
-                  echo "Possible undefined behavior at [$(echo $constraint | awk '{print $1 "," $2}')] - \"$(echo $constraint | awk '{print $3}')\" aliases with \"$(echo $constraint | awk '{print $4}')\""
+              if [ "$(echo "$Alias" | awk '{print $6 $7}')" = "$(echo "$constraint" | awk '{print $6 $7}')" -o "$(echo "$Alias" | awk '{print $6 $7}')" = "$(echo "$constraint" | awk '{print $7 $6}')" ]; then
+                  echo "Possible undefined behavior at [$(echo $constraint | awk '{print $2 "," $3}')] - \"$(echo $constraint | awk '{print $6}')\" aliases with \"$(echo $constraint | awk '{print $7}')\""
               fi
           done <<< "$(echo "$translated" | grep "^$function_name ")"
       fi
