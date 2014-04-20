@@ -4,6 +4,6 @@ int *f(int *a, int *b){
 
 int main(void){
     int a = 1, b = 1;
-    *(f(&a,&b)) = 42;
+    *(f(&a,&b)) = a++;
     return a;
 }
