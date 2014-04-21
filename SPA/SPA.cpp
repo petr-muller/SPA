@@ -39,7 +39,6 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
         enum lvalueResult {None, Use, SideEffect};
         int lvaluelvl;
         DiagnosticsEngine &DE;
-        unsigned SPA_seqwarning;
         unsigned SPA_fallback;
         unsigned FILE_error;
         NamedDecl *currentFunDecl;
@@ -130,11 +129,14 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
                 }*/
                 return Use;
             break;
+            case Stmt::ForStmtClass:
             case Stmt::IfStmtClass:
             case Stmt::WhileStmtClass:
             case Stmt::SwitchStmtClass:
             case Stmt::BreakStmtClass:
             case Stmt::DoStmtClass:
+            case Stmt::GotoStmtClass:
+            case Stmt::CStyleCastExprClass:
                 lvalueTable.set(this->currentFunDecl, parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl, childIndex);
                 return Use;
             break;
@@ -151,8 +153,7 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
 
     public:
         SPAVisitor(CompilerInstance &CI, LvalueTable &lvalueTable) : lvaluelvl(0), DE(CI.getDiagnostics()), lvalueTable(lvalueTable), parentMap(0), updateParentMap(false)/*, parentMap(static_cast<Decl*>(CI.getASTContext().getTranslationUnitDecl()))*/{
-            this->SPA_seqwarning = DE.getCustomDiagID(DiagnosticsEngine::Warning, "Warning: side effect and sequence point related undefined behavior [SPA]");
-            this->SPA_fallback = DE.getCustomDiagID(DiagnosticsEngine::Warning, "Warning: fallback action while processing a node of unknown type '%0'");
+            this->SPA_fallback = DE.getCustomDiagID(DiagnosticsEngine::Warning, "SPA: fallback action while processing a node of unknown type '%0'");
         }
         ~SPAVisitor(){
             if(this->parentMap != 0){
