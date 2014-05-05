@@ -241,14 +241,12 @@ CompCert is a formally verified compiler~\cite{CompCert} that is able to \emph{d
 %%%%%%%%%%%%
 \section{Theoretical work}
 Multiple related theoretical works exist, none of them, however, covers all the needed topics:
-\subsection{Sequence points}
-A blogpost~\cite{CompCertBlogpost} about CompCert's approach based on formal semantics of C by Chucky Ellison and Grigore Rosu.~\cite{formalSemantics}
-\subsection{Working with AST}
-A paper published by WG14 about dividing the AST into subexpressions with sequence points specifically in mind.~\cite{seqPointWG14}
-\subsection{What other checkers are needed}
-A blogpost that originally made me work on this. It shows some examples of undefined behavior and states that it would be useful if there were some dynamic checkers.~\cite{regehr}
-\subsection{Alias analysis}
-One of multiple papers about alias analysis showing an approach which would be possible to implement on a Clang's AST level if there were no better options.~\cite{steensgaard}
+\begin{itemize}
+\item A blogpost~\cite{CompCertBlogpost} about CompCert's approach based on formal semantics of C by Chucky Ellison and Grigore Rosu.~\cite{formalSemantics}
+\item A paper published by WG14 about dividing the AST into subexpressions with sequence points specifically in mind.~\cite{seqPointWG14}
+\item A blogpost that originally made me work on this. It shows some examples of undefined behavior and states that it would be useful if there were some dynamic checkers.~\cite{regehr}
+\item One of multiple papers about alias analysis showing an approach which would be possible to implement on a Clang's AST level if there were no better options.~\cite{steensgaard}
+\end{itemize}
 %%%%%%%%%%%%
 \section{Sequence-point analyzer goal}
 Both tools able to statically detect undefined behavior can detect it in Example 1~(\ref{example1}) (\verb|i = i++;|). None of them, however, works e.g. on Example 2~(\ref{example2}) or Example 3~(\ref{example3}) (\verb|i = (*j)++;| and \verb|i = f(&i) + g(&i);|). This is due to lack of alias analysis and not considering functions at all.
@@ -266,7 +264,6 @@ AST dump of example 1~(\ref{example1}) provided by Clang is shown on figure \ref
 \begin{figure}
 \caption{Example 1~(\ref{example1}) AST dump}
 \label{ASTdump}
-\small{
 \begin{lstlisting}
 TranslationUnitDecl 0x29bdec0 <<invalid sloc>>
 |-TypedefDecl 0x29be3c0 <<invalid sloc>> __int128_t '__int128'
@@ -284,7 +281,7 @@ TranslationUnitDecl 0x29bdec0 <<invalid sloc>>
     `-ReturnStmt 0x29beaf8 <line:4:2, col:9>
       `-ImplicitCastExpr 0x29beae0 <col:9> 'int' <LValueToRValue>
         `-DeclRefExpr 0x29beab8 <col:9> 'int' lvalue Var 0x29be990 'i' 'int'
-\end{lstlisting}}
+\end{lstlisting}
 \end{figure}
 On figure \ref{ASTuntagged} is its graphical representation (after omitting the typedefs from the beginning).
 \begin{figure}
@@ -298,21 +295,19 @@ As we can see, we can, by definition of individual AST nodes, determine what (if
 
 %%%%%%%%%%%%
 \section{L-value scope}
-Some expressions keep an address of the given operand, meaning it can be used later in some parent node as an lvalue and, e.g., be assigned to.
+Some expressions keep an address of the given operand, meaning it can be used later in some parent node as an lvalue and, e.g., be assigned to. Consider this code:
 
 \begin{lstlisting}
 int main(void){
     int i = 2;
-    int *j = &i;
     int a = 3;
-    int *b = &a;
-    *(b!=0?&i:&i) = 42;
-    return *(j);
+    *(a==3?&i:&i) = 42;
+    return i;
 }
 
 \end{lstlisting}
 
-Pretty nonsense, but legal. Returns 42. Some other expressions, however, get rid of the operand address irreversibly and we can be sure it will never be used as an l-value until its next occurence. An example of this is the \verb|b| variable in the conditional operator from the code above: it can never be used as an l-value in the whole subtree with the assignment it appears in as the conditional operator just uses it and throws it away.
+In this example, it is the case of \verb|&i|. Some other expressions, however, get rid of the operand address irreversibly and we can be sure it will never be used as an L-value until its next occurence. An example of this is the \verb|b| variable in the conditional operator from the code above: it can never be used as an l-value in the whole subtree with the assignment it appears in as the conditional operator just uses it and throws it away.
 
 %%%%%%%%%%%%
 \section{Node tagging}
@@ -369,31 +364,18 @@ In this case, the most efficient and usable approach is probably just stating th
 
 %%%%%%%%%%%%
 \section{Output format}
-For sake of portability, the output of the first (Clang) phase will not be forwarded directly to LLVM (which is probably the tool that will be used for alias analysis), but to standard output using a marshalling algorithm. The output must contain the following information:
+For sake of portability, the output of the first (Clang) phase will not be forwarded directly to LLVM (which is probably the tool that will be used for alias analysis), but to the standard output instead. The output must contain the following information:
 
 \begin{itemize}
-\item Row of the source file
 \item Function in which the variables are to be checked for aliasing
-\item Variable to be checked; if it aliases with the second variable, undefined behavior occurs
-\item Variable 2
+\item Location of the statement with potentially undefined behavior
+\item Variables to be checked; if they alias, undefined behavior occurs
 \end{itemize}
 
-I am going to use the JSON representation; the output should then look like this:
-
 \begin{lstlisting}
-{output:[
-    {function:"f",
-    constraints:[
-                    {42,"i","*j"},
-                    {108,"i","i"}
-                ]
-    },
-    {function:"g",
-    constraints:[
-                    {112,"a","**b"}
-                ]
-    }
-]}
+Possible undefined behavior in function "main" at [16,9] - "*j" aliases with "*k"
+Possible undefined behavior in function "main" at [16,5] - "*j" aliases with "i"
+Possible undefined behavior in function "main" at [16,5] - "*k" aliases with "i"
 \end{lstlisting}
 
 This output can then be used by any external alias analysis.
