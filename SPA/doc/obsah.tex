@@ -396,7 +396,7 @@ From this, we can conclude that every node can be tagged either as "implying a s
 
 We began tagging from the left DeclRefExpr. It surely can be used as an L-value but the expression itself implies no side effect, hence the blue tag ("not implying anything"). We went towards the root and as we passed the \verb|BinaryExpression (=)|, we mark it as an expression implying a side effect on \verb|i| (red tag) as it modifies the memory contents of \verb|i|. We continued to the top implicitly marking all the parent nodes as having a side effect on \verb|i|. Then we can do the same for the right DeclRefExpr and as we see two red tags of the same variable, we can say we found an undefined behavior.
 
-TODO tabulka - co delam s jednotlivymi druhy uzlu?
+%TODO tabulka - co delam s jednotlivymi druhy uzlu?
 
 %----------------------------------------------------------------------------------------------------------------
 \subsection{Output of the first part}
@@ -621,7 +621,7 @@ Possible undefined behavior in function "main" at [6,3] - "*j" aliases with "i"
 \subsection{Further development}
 Here we discuss the SPA's potential for further development and possible usability for upstream.
 
-The first part is a Clang plugin. As any other Clang plugin, it uses an interface that is \emph{not considered stable} and would need to be consistently developed should it be a par of upstream. The plugin itself works well and may serve as a starting point for further development.
+The first part is a Clang plugin. As any other Clang plugin, it uses an interface that is \emph{not considered stable}~\cite{clang-unstable} and would need to be consistently developed should it be a par of upstream. The plugin itself works well and may serve as a starting point for further development.
 
 The second part is not as rigid as the first one. It can be easily replaced by some other script using some other alias analysis implementation. It has a flaw described in \ref{flaw}. It relies on exact output format of alias analysis which is, however, not considered stable. This part is innovative in means of mapping the original variable name and location to a temporary variable via debug info, but should not be considered stable nor should any further development be based on it.
 
@@ -676,20 +676,40 @@ The overall accuracy of the SPA is 95\% and the only error in the set is caused 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Installation and usage}
-In this chapter, we will discuss the software requirements of the SPA, its automated installation and manual installation. We will discuss the usage from user's point of view and show an example.
+In this chapter, we will discuss the software requirements of the SPA, its automated installation and manual installation. We will discuss the usage from user's point of view.%TODO and show and example
 %================================================================================================================
 \section{Requirements}
-The tool should run on any system capable of compiling and running LLVM and Clang \emph{and} invoking a Bash script. It has been tested on Linux, specifically multiple versions of Fedora 17 and 19, both x86\_64 architecture.
+The tool should run on any system capable of compiling and running LLVM and Clang \emph{and} invoking a Bash script in POSIX environment. It has been tested on Linux, specifically multiple versions of Fedora 17 and 19, both x86\_64 architecture.
 
 Clang is only required for the first part and full LLVM for the second part. The SPA uses the interfaces of Clang and LLVM that are both considered unstable so it might require specific versions of these tools. It has been tested on Clang 3.5.0  and LLVM 3.5.0.
 
 The best way to download the SPA is Git. The Makefile itself uses SVN which is therefore required for the automated installation.
 %================================================================================================================
 \section{Installation}
+\begin{enumerate}
+\item If you do not have the SPA, you need to download it, for example by
+\begin{verbatim}git clone https://github.com/KamikazeCZ/SPA.git\end{verbatim}
+
+\item Go to the newly created repository directory
+
+\item For automated installation, run
+\begin{verbatim}make\end{verbatim}
+\end{enumerate}
 %================================================================================================================
 \section{Manual installation}
+For manual installation, you need to download Clang and LLVM. Refer to points 1 to 5 of the Get Started guide~\cite{clang-get_started}. You do not need Clang extra tools.
+
+After following these instructions, you should have a \verb|llvm| directory with the source of both LLVM and Clang. Copy the SPA folder (the one \emph{inside} the repository) to \verb|llvm/tools/clang/tools|. Also copy the \verb|SPA/top-level-makefile/Makefile| file to \verb|llvm/tools/clang/tools|.
+
+This should have added the SPA as a Clang plugin and you can continue by point 6 of the Get Started guide.
 %================================================================================================================
 \section{Usage}
+To verify the correct installation, run \begin{verbatim}make run\end{verbatim} This is equivalent to running \begin{verbatim}./run SPA/examples/test1A.c\end{verbatim}
+
+Running \verb|./run <file.c>| is a standard way to run the whole SPA on certain file. It is a script executing both parts of the SPA. To only run the first part, run \begin{verbatim}build/Release+Asserts/bin/clang <file.c>\end{verbatim}
+For debug mode, use \begin{verbatim}./debugrun <file.c>\end{verbatim} instead.
+
+To generate this documentation, run \verb|make| in \verb|SPA/doc|.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Conclusion}
 A tool has been implemented that searches for undefined behavior related to side effects and sequence points in the C language programs. It consists of two parts, the first part generates a list of \emph{possible} undefined behavior occurences and the second part verifies these constraints and generates the final user-readable output. The first part is implemented as a Clang plugin, the second as a Bash script using alias analysis in LLVM.
