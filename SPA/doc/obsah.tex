@@ -561,6 +561,9 @@ The Makefile is written so that it automaticcaly downloads all the necessary sof
 The Clang plugin part consists of two \verb|.cpp| files. For implementation reasons, there are no header files. The \verb|SPA.cpp| file consists of the part connecting the SPA with Clang and of the part traversing the AST and deciding what node should be tagged. The \verb|LvalueTable.cpp| file provides functions for actual tagging of nodes and generating the final constraints.
 
 The alias analysis part is a Bash script \verb|run.sh| that uses the output of the first part, and together with LLVM IR, alias analysis output and debug info checks the constraints and provides the final output to the user. The \verb|run.sh| script is what user invokes directly. There is also a \verb|debugrun.sh| file automatically generated from a \verb|run.sh| file during a \verb|make| command, that shows The constraints, LLVM IR, debug info, alias analysis output and the final output rather than only the final output. See the example debug output in the figure \ref{debug}.
+
+The documentation source files in latex are in a \verb|SPA/doc| folder, the installation instructions are in \verb|INSTALL.txt| and very basic info about the SPA is in \verb|README.md|.
+
 \begin{figure}
 \caption{Debug output}
 \label{debug}
@@ -616,6 +619,15 @@ Possible undefined behavior in function "main" at [6,3] - "*j" aliases with "i"
 \end{figure}
 %----------------------------------------------------------------------------------------------------------------
 \subsection{Further development}
+Here we discuss the SPA's potential for further development and possible usability for upstream.
+
+The first part is a Clang plugin. As any other Clang plugin, it uses an interface that is \emph{not considered stable} and would need to be consistently developed should it be a par of upstream. The plugin itself works well and may serve as a starting point for further development.
+
+The second part is not as rigid as the first one. It can be easily replaced by some other script using some other alias analysis implementation. It has a flaw described in \ref{flaw}. It relies on exact output format of alias analysis which is, however, not considered stable. This part is innovative in means of mapping the original variable name and location to a temporary variable via debug info, but should not be considered stable nor should any further development be based on it.
+
+As to including the whole SPA to upstream, there is generally one issue that makes it difficult and arguably useless: it doesn't find the final results during the compilation. It merely generates constraints which need to be further checked, that is what \verb|run.sh| does. That means this check can't be transparently added to the Clang compile-time checks without major changes in the Clang's architecture.
+
+Potential further development, other than debugging, is thus making the whole tool invokable just as a Clang plugin.
 %================================================================================================================
 \section{Testing}
 We will test the application using a prepared set of testcases. These can also be effectively used as demonstration of the undefined behavior problem and the principles of the SPA.
