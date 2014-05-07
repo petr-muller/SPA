@@ -556,7 +556,7 @@ In this chapter, we will briefly describe the implementation and show tests and 
 \section{Implementation}
 The project consists of: \verb|Makefile|, the Clang plugin part (\verb|SPA.cpp|, \verb|LvalueTable.cpp|), alias analysis part (\verb|run.sh| and \verb|debugrun.sh| bash scripts), and support files like documentation and examples.
 
-The Makefile is written so that it automaticcaly downloads all the necessary software, such as Clang or LLVM, automatically downloads the latest version of the SPA, and installs it in the current directory. It also has the option to install the version of the SPA provided together with the Makefile.
+The Makefile is written so that it automatically downloads latest versions of all the necessary software, such as Clang or LLVM, and installs them together with SPA in the current directory.
 
 The Clang plugin part consists of two \verb|.cpp| files. For implementation reasons, there are no header files. The \verb|SPA.cpp| file consists of the part connecting the SPA with Clang and of the part traversing the AST and deciding what node should be tagged. The \verb|LvalueTable.cpp| file provides functions for actual tagging of nodes and generating the final constraints.
 
@@ -676,8 +676,14 @@ The overall accuracy of the SPA is 95\% and the only error in the set is caused 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Installation and usage}
+In this chapter, we will discuss the software requirements of the SPA, its automated installation and manual installation. We will discuss the usage from user's point of view and show an example.
 %================================================================================================================
 \section{Requirements}
+The tool should run on any system capable of compiling and running LLVM and Clang \emph{and} invoking a Bash script. It has been tested on Linux, specifically multiple versions of Fedora 17 and 19, both x86\_64 architecture.
+
+Clang is only required for the first part and full LLVM for the second part. The SPA uses the interfaces of Clang and LLVM that are both considered unstable so it might require specific versions of these tools. It has been tested on Clang 3.5.0  and LLVM 3.5.0.
+
+The best way to download the SPA is Git. The Makefile itself uses SVN which is therefore required for the automated installation.
 %================================================================================================================
 \section{Installation}
 %================================================================================================================
@@ -686,3 +692,8 @@ The overall accuracy of the SPA is 95\% and the only error in the set is caused 
 \section{Usage}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Conclusion}
+A tool has been implemented that searches for undefined behavior related to side effects and sequence points in the C language programs. It consists of two parts, the first part generates a list of \emph{possible} undefined behavior occurences and the second part verifies these constraints and generates the final user-readable output. The first part is implemented as a Clang plugin, the second as a Bash script using alias analysis in LLVM.
+
+The tests have shown the accuracy of 95\%, positive predictive value of 94\% and negative predictive value of 100\%. The only failed test failed due to the known flaw  originating in alias analysis giving not enough information.
+
+The tool is currently probably not useful in the upstream due to its two-phase architecture which doesn't allow for transparent compile-time checks in Clang. It can be, however, used as a starting point for further development, particularly its first part which seems to work well.

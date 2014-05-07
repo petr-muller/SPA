@@ -65,7 +65,7 @@ function get_function_llvmir {
   echo "$ret"
 }
 
-file=llvm/tools/clang/tools/SPA/examples/test2.c
+file=SPA/examples/test1A.c
 if [[ ! -z $1 ]] ; then
     file=$1
 fi
