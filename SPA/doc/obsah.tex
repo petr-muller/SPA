@@ -521,7 +521,7 @@ $ llvm-dis test1A.bc -o -
 
 In order to get access to this debug info, we need to compile to the bitcode using \verb|-g3| (for debug info in general) and \verb|-gcolumn-info| (for columnt information, otherwise it would be always 0 for performance reasons) parameters.
 %----------------------------------------------------------------------------------------------------------------
-\subsection{Constraints and translated aliases comparison}
+\subsection{Constraints and translated aliases comparison}\label{flaw}
 The described method will lead to a set of constraints from the first part of the SPA (figure \ref{first-part-output}) \emph{and} a set of aliases matched with their original names and locations (``translated aliases''). It is then a matter of comparing two lists, each item with each, and if some of them matches, it indicates the undefined behavior.
 
 As we found no way of getting the exact position of the \emph{statement} where two variables alias out of the LLVM alias analysis, we need to introduce a solution possibly leading to false positives: If two variables have aliased \emph{anywhere before the statement, and in the same function as the statement occurs}, it is considered to alias in that statement, too. This is a flaw we were not able to circumvent. Example of this case is in figure \ref{example-alias-before}, where \verb|*k| is considered as aliasing with \verb|i| and undefined behavior is falsely detected. This is a flaw of the second part of the SPA and depends on information accessible from the alias analysis. Alias analysis errors and indefinite answers may also lead to false positives.
@@ -551,22 +551,85 @@ Possible undefined behavior in function "main" at [16,5] - "*k" aliases with "i"
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Implementation and testing}
+In this chapter, we will briefly describe the implementation and show tests and their results.
 %================================================================================================================
 \section{Implementation}
+The project consists of: \verb|Makefile|, the Clang plugin part (\verb|SPA.cpp|, \verb|LvalueTable.cpp|), alias analysis part (\verb|run.sh| and \verb|debugrun.sh| bash scripts), and support files like documentation and examples.
+
+The Makefile is written so that it automaticcaly downloads all the necessary software, such as Clang or LLVM, automatically downloads the latest version of the SPA, and installs it in the current directory. It also has the option to install the version of the SPA provided together with the Makefile.
+
+The Clang plugin part consists of two \verb|.cpp| files. For implementation reasons, there are no header files. The \verb|SPA.cpp| file consists of the part connecting the SPA with Clang and of the part traversing the AST and deciding what node should be tagged. The \verb|LvalueTable.cpp| file provides functions for actual tagging of nodes and generating the final constraints.
+
+The alias analysis part is a Bash script \verb|run.sh| that uses the output of the first part, and together with LLVM IR, alias analysis output and debug info checks the constraints and provides the final output to the user. The \verb|run.sh| script is what user invokes directly. There is also a \verb|debugrun.sh| file automatically generated from a \verb|run.sh| file during a \verb|make| command, that shows The constraints, LLVM IR, debug info, alias analysis output and the final output rather than only the final output. See the example debug output in the figure \ref{debug}.
+\begin{figure}
+\caption{Debug output}
+\label{debug}
+\begin{lstlisting}
+$ ./debugrun.sh SPA/examples/test1A.c
+LLVM IR:
+define i32 @main() #0 {
+  call void @llvm.dbg.declare(metadata !{i32* %i}, metadata !12), !dbg !13
+  store i32 0, i32* %i, align 4, !dbg !14
+  call void @llvm.dbg.declare(metadata !{i32** %j}, metadata !15), !dbg !17
+  store i32* %i, i32** %j, align 8, !dbg !18
+  %0 = load i32** %j, align 8, !dbg !19
+  %1 = load i32* %0, align 4, !dbg !19
+  %inc = add nsw i32 %1, 1, !dbg !19
+  store i32 %inc, i32* %0, align 4, !dbg !19
+  store i32 %1, i32* %i, align 4, !dbg !19
+  %2 = load i32* %i, align 4, !dbg !20
+  ret i32 %2, !dbg !20
+!0 = metadata !{i32 786449, metadata !1, i32 12, metadata !"clang version 3.5.0 (trunk 205669)", i1 false, metadata !"", i32 0, metadata !2, metadata !2, metadata !3, metadata !2, metadata !2, metadata !"", i32 1} ; [ DW_TAG_compile_unit ] [/home/lhellebr/bc/new/SPA/SPA/examples/test1A.c] [DW_LANG_C99]
+!1 = metadata !{metadata !"SPA/examples/test1A.c", metadata !"/home/lhellebr/bc/new/SPA"}
+!2 = metadata !{}
+!3 = metadata !{metadata !4}
+!4 = metadata !{i32 786478, metadata !1, metadata !5, metadata !"main", metadata !"main", metadata !"", i32 3, metadata !6, i1 false, i1 true, i32 0, i32 0, null, i32 0, i1 false, i32 ()* @main, null, null, metadata !2, i32 3} ; [ DW_TAG_subprogram ] [line 3] [def] [main]
+!5 = metadata !{i32 786473, metadata !1}          ; [ DW_TAG_file_type ] [/home/lhellebr/bc/new/SPA/SPA/examples/test1A.c]
+!6 = metadata !{i32 786453, i32 0, null, metadata !"", i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !7, i32 0, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!7 = metadata !{metadata !8}
+!8 = metadata !{i32 786468, null, null, metadata !"int", i32 0, i64 32, i64 32, i64 0, i32 0, i32 5} ; [ DW_TAG_base_type ] [int] [line 0, size 32, align 32, offset 0, enc DW_ATE_signed]
+!9 = metadata !{i32 2, metadata !"Dwarf Version", i32 4}
+!10 = metadata !{i32 1, metadata !"Debug Info Version", i32 1}
+!11 = metadata !{metadata !"clang version 3.5.0 (trunk 205669)"}
+!12 = metadata !{i32 786688, metadata !4, metadata !"i", metadata !5, i32 4, metadata !8, i32 0, i32 0} ; [ DW_TAG_auto_variable ] [i] [line 4]
+!13 = metadata !{i32 4, i32 7, metadata !4, null}
+!14 = metadata !{i32 4, i32 3, metadata !4, null}
+!15 = metadata !{i32 786688, metadata !4, metadata !"j", metadata !5, i32 5, metadata !16, i32 0, i32 0} ; [ DW_TAG_auto_variable ] [j] [line 5]
+!16 = metadata !{i32 786447, null, null, metadata !"", i32 0, i64 64, i64 64, i64 0, i32 0, metadata !8} ; [ DW_TAG_pointer_type ] [line 0, size 64, align 64, offset 0] [from int]
+!17 = metadata !{i32 5, i32 8, metadata !4, null}
+!18 = metadata !{i32 5, i32 3, metadata !4, null}
+!19 = metadata !{i32 6, i32 3, metadata !4, null}
+!20 = metadata !{i32 7, i32 3, metadata !4, null}
+
+Aliases:
+main 0 i
+
+Constraints:
+main 6 3 6 3 *j i
+
+Translated aliases:
+main 6 3 any any *j i
+
+Results:
+Possible undefined behavior in function "main" at [6,3] - "*j" aliases with "i"
+\end{lstlisting}
+\end{figure}
+%----------------------------------------------------------------------------------------------------------------
+\subsection{Further development}
 %================================================================================================================
 \section{Testing}
 We will test the application using a prepared set of testcases. These can also be effectively used as demonstration of the undefined behavior problem and the principles of the SPA.
 In this section, we will describe testcases and statistically analyze the results.
 %----------------------------------------------------------------------------------------------------------------
 \subsection{Testcases}
-Currently there are 22 tests. Some of them use pointers. Results of some of them are expected to be positive (undefined behavior found), some are expected to be negative. See details in the table:\\
+Currently there are 21 tests. Some of them use pointers. Results of some of them are expected to be positive (undefined behavior found), some are expected to be negative. See details in the table:\\
 
 \begin{tabular}{|l|l|l|}
 \hline
                  & Positive & Negative \\\hline
-With pointers    & 7        & 4        \\\hline
+With pointers    & 7        & 3        \\\hline
 Without pointers & 9        & 2        \\\hline
-\end{tabular}
+\end{tabular}\\
 
 The tests vary in constructions used, use different data types, statement types and undefined behavior origins. Most of them are in a pointer and non-pointer version. They are part of both the repository and the attached source codes.
 
@@ -577,13 +640,37 @@ Some of these cases are: undefined behavior while indexing arrays, functions, ig
 
 The results are shown in the following table:
 
-\begin{tabular}{|r|l|}
+\begin{tabular}{|r|r|}
 \hline
- & \\\hline
+True Positives                         &             16   \\\hline
+True Negatives                         &              4   \\\hline
+False Positives                        &              1   \\\hline
+False Negatives                        &              0   \\\hline\hline
+\textbf{Sensitivity}                   & \textbf{100\%}   \\\hline
+\textbf{Specificity}                   &  \textbf{80\%}   \\\hline
+Fall-out                               &           20\%   \\\hline
+\textbf{Positive predictive value}     &  \textbf{94\%}   \\\hline
+\textbf{Negative predictive value}     & \textbf{100\%}   \\\hline
+False discovery rate                   &            6\%   \\\hline\hline
+\textbf{Accuracy}                      &  \textbf{95\%}   \\\hline
+F1 score                               &           97\%   \\\hline
+\end{tabular}\\
 
-\end{tabular}
+As we can see, there were no false negatives, which means that the SPA never ``missed'' an actual undefined behavior. In this test set, we have found one false positive. This false positive was caused by the second phase and is caused by the flaw described in the second paragraph of \ref{flaw}. The test was created with this flaw specifically in mind.
+
+After some statistical analysis, we see that, based on this test set, if there is no undefined behavior detected, there is certainly no undefined behavior (related to sequence points and side effects) and if there is some undefined behavior detected, there is a 94\% chance there actually is undefined behavior.
+
+The overall accuracy of the SPA is 95\% and the only error in the set is caused by the second phase of the SPA.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Installation and usage}
+%================================================================================================================
+\section{Requirements}
+%================================================================================================================
+\section{Installation}
+%================================================================================================================
+\section{Manual installation}
+%================================================================================================================
+\section{Usage}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\chapter{Závěr}
+\chapter{Conclusion}
