@@ -2,28 +2,30 @@
 % (c) Michal Bidlo, Bohuslav Křena, 2008
 
 \chapter{Introduction}
-The C programming language is a very powerful and effective way of writing programs. Arguably the most important reason is that it is almost as low-level as a structured programming language can be. This leads to great freedom of choice and potentially very effective resulting program, however with this freedom comes a programmer's responsibility to either evade some language constructs or to cope with possible unpredictable results -- the undefined behavior in C.
+The C programming language is a very powerful and efficient language for writing programs. Arguably the most important reason for this is that it is almost as low-level as a structured programming language can be. This leads to great freedom of choice and potentially very efficient resulting programs. With this freedom, however, comes a programmer's responsibility to avoid some language constructs to prevent possible unpredictable results~--~the undefined behavior in C.
 
-The most important document to study regarding the C language is its most recent standard: ISO/IEC 9899:2011~\cite{C11} , informally known as \emph{ISO C11}. (For the purpose of this paper, we are going to cite its last free and public draft available~\cite{WG14N1570})
+Our goal is to describe possible sources of undefined behavior related to sequence points and side effects (described in the rest of this chapter), design a tool for automated detection of this behavior and ultimately implement it. We will describe the necessary theoretical background, mention current solutions of this problem and their flaws. We will argue about the best way of implementing a new tool without these flaws and show some problems that must be overcome in order to do it. We will also make a set of examples. The final implemented tool will be tested on these examples.
+
+In this chapter, we will describe the necessary theoretical background. The most important document to study regarding the C language is its most recent standard: ISO/IEC 9899:2011~\cite{C11} , informally known as \emph{ISO C11}. (For the purpose of this paper, we are going to use its last free and public draft available~\cite{WG14N1570})
 
 %%%%%%%%%%%%
 \section{Undefined behavior}
-ISO C11 specifies how the implementation is expected to work and when there are no expectations regarding the implementation's behavior at all. Multiple terms are used to describe similar but different requirements on the implementation:~\cite{WG14N1570}
+ISO C11 specifies how the compiler implementation is expected to work and when there are no expectations regarding the implementation's behavior at all. Multiple terms are used to describe similar but different requirements on the implementation:~\cite{WG14N1570}
 \begin{itemize}
-    \item \emph{Behavior} -- external  appearance or action
-    \item \emph{Unspecified behavior} -- use of an unspecified value, or other behavior where this International Standard provides two or more possibilities and imposes no further requirements on which is chosen in any instance
-    \item \emph{Implementation-defined behavior} -- unspecified behavior where each implementation documents how the choice is made
-    \item \emph{Locale-specific behavior} -- behavior that depends on local conventions of nationality, culture, and language that each implementation documents
-    \item \emph{Undefined behavior} -- behavior, upon use of a nonportable or erroneous program construct or of erroneous data, for which this International Standard imposes no requirements
+    \item \emph{Behavior}~--~external  appearance or action
+    \item \emph{Unspecified behavior}~--~use of an unspecified value, or other behavior where the C standard provides two or more possibilities and imposes no further requirements on which is chosen in any instance
+    \item \emph{Implementation-defined behavior}~--~unspecified behavior where each implementation documents how the choice is made
+    \item \emph{Locale-specific behavior}~--~behavior that depends on local conventions of nationality, culture, and language that each implementation documents
+    \item \emph{Undefined behavior}~--~behavior, upon use of a nonportable or erroneous program construct or of erroneous data, for which the C standard imposes no requirements
 \end{itemize}
 
-Bear in mind that undefined behavior allows \emph{any} behavior -- meaning not only the returned value is not specified but also that the implementation is allowed to do \emph{anything} -- the program might run ``just fine'' (as the programmer expected) or the program might erase your hard disk and it would be perfectly legal according to the standard.
+Bear in mind that undefined behavior allows \emph{any} behavior. That means not only the returned value of the operation with undefined behavior or value of some variable is not specified but also that the implementation is allowed to do \emph{anything}. The program might run ``just fine'' (as the programmer expected) or the program might erase your hard disk and it would be perfectly legal according to the standard.
 
 %%%%%%%%%%%%
 \section{Side effect}
-ISO C11~\cite{WG14N1570} gives the following definition for a side effect: ``Accessing a volatile object, modifying an object, modifying a file, or calling a function that does any of those operations are all side effects, which are changes in the state of the execution environment. Evaluation of an expression in general includes both value computations and initiation of side effects. Value computation for an lvalue expression includes determining the identity of the designated object.''
+ISO C11~\cite{WG14N1570} gives the following definition of a side effect: ``Accessing a volatile object, modifying an object, modifying a file, or calling a function that does any of those operations are all side effects, which are changes in the state of the execution environment. Evaluation of an expression in general includes both value computations and initiation of side effects. Value computation for an lvalue expression includes determining the identity of the designated object.''
 
-Informally said, a side effect is usually modifying a memory during evaluation of an expression -- for example \verb|i++| is an expression whose \emph{return value} is the value of \verb|i| before evaluation \emph{and the value of }\verb|i|\emph{ is incremented by 1} -- this is the side effect, the expression evaluation accesed the memory addressed by \verb|i| and modified its value.
+Informally said, a side effect is usually modifying a memory during evaluation of an expression. For example \verb|i++| is an expression whose \emph{return value} is the value of \verb|i| before evaluation \emph{and the value of }\verb|i|\emph{ is incremented by 1}~--~this is the side effect. The expression evaluation accesed the memory addressed by \verb|i| and modified its value.
 
 %%%%%%%%%%%%
 \section{Sequence point}
@@ -38,7 +40,7 @@ either before or after B, but it is unspecified which. The presence of a sequenc
 side effect associated with A is sequenced before every value computation and side effect
 associated with B.''
 
-The evaluation order of expressions may be specified, but in many cases it is not. If it is not, the implementation is in certain cases required to specify it and do it consistently and predictably. ISO C11, in other words, states that an expression A must be evaluated (or at least the external behavior must appear like it is evaluated -- ``an actual implementation need not evaluate part of an expression if it can deduce that its value is not used and that no needed side effects are produced''~\cite{WG14N1570}) before an expression B when it is on the left side of a sequence point that is between A and B. Otherwise A and B may either be evaluated in an unspecified order or they can even \emph{not be evaluated in any order} -- the evaluation of A may start, then be interrupted, B may be evaluated and A evaluation may be completed then, for example.
+Informally said, the evaluation order of expressions may be specified, but in many cases it is not. If it is not, the implementation is in certain cases required to specify it and perform the evaluation consistently and predictably. ISO C11, in other words, states that an expression A must be evaluated (or at least the external behavior must appear like it is evaluated~--~``an actual implementation need not evaluate part of an expression if it can deduce that its value is not used and that no needed side effects are produced''~\cite{WG14N1570}) before an expression B when it is on the left side of a sequence point that is between A and B. Otherwise A and B may either be evaluated in an unspecified order or they can even \emph{not be evaluated in any order}~--~the evaluation of A may start, then be interrupted, B may be evaluated and A evaluation may be completed then, for example.
 
 ISO C11 enumerates the sequence points as follows:~\cite{WG14N1570}
 \begin{itemize}
@@ -55,16 +57,16 @@ controlling expression of a selection statement (if or switch); the controlling 
 
 %%%%%%%%%%%%
 \section{Consequences}%FIXME: str. 76 normy, body 2 a 3, zminit. That means whenever there are two expressions that are unsequenced and have multiple side effects OR a side effect and an access on the same object...
-According to ISO C11~\cite{WG14N1570}, undefined behavior occurs when ``a side effect on a scalar object is unsequenced relative to either a different side effect on the same scalar object or a value computation using the value of the same scalar object''. That means whenever there are two expressions that are unsequenced and have multiple side effects \emph{or} a side effect and an access on the same object (meaning its value is to be modified, but in any order and possibly not even in any order), the undefined behavior occurs meaning not only the value of a given object is undefined but the whole program might do absolutely anything -- most of the implementations will probably do something ``reasonable'', but they are not required to.
+According to ISO C11~\cite{WG14N1570}, undefined behavior occurs when ``a side effect on a scalar object is unsequenced relative to either a different side effect on the same scalar object or a value computation using the value of the same scalar object''. That means whenever there are two expressions that are unsequenced and have multiple side effects \emph{or} a side effect and an access on the same object (meaning its value is to be modified, but in any order and possibly not even in any order), the undefined behavior occurs. This means not only the value of a given object is undefined but the whole program might do absolutely anything~--~most of the implementations will probably do something ``reasonable'', but they are not required to.
 
-This kind of undefined behavior appears not to be very dangerous on sight -- most of the programmers would either expect, e.g., \verb|i = i++;| expression to be well-defined or think the value of \verb|i| would either be \verb|i| or \verb|i+1|.
+This kind of undefined behavior appears not to be very dangerous on sight~--~most of the programmers would either expect, e.g., \verb|i = i++;| expression to be well-defined or think the value of \verb|i| would either be \verb|i| or \verb|i+1|.
 However, if you write \verb|i = i++;| in your program and run it, you might get your hard disk erased just as well.
 
-Another reason why this is dangerous is that most of the implementations will behave ``reasonably'' and do one of the things a programmer would expect. It is therefore hard to reveal this kind of errorneous C constructs and it might be present in a program for many years until the implementation behavior changes and the program, too, suddenly changes its behavior for no obvious reason.
+Another reason why this is dangerous is that most of the implementations will behave ``reasonably'' and do one of the things a programmer would expect. It is therefore hard to reveal this kind of errorneous C constructs. Tt might be present in a program for many years until the implementation behavior changes and the program, too, suddenly changes its behavior for no obvious reason.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Examples}
-As described in the previous chapter, it is a very reasonable requirement not to have any undefined behavior in one's program. Also it is highly questionable whether even a very good programmer can manage to find all of the possible constructs leading to undefined behavior due sequence point misunderstanding as some of them are very obscure. Most of the people who can code in C have probably never even heard of ``sequence point'' and often (this is our personal observation) do not believe certain construct leads to undefined behavior or are confused and try to guess which is the ``correct'' result.
+As described in the previous chapter, it is necessary to avoid having any undefined behavior in one's program. A program with undefined behavior is poorly written and needs to be fixed. Also it is highly questionable whether even a very good programmer can manage to find all of the possible constructs leading to undefined behavior due to sequence point misunderstanding as some of them are very obscure. Most of the people who can code in C have probably never even heard of ``sequence point'' and often (this is our personal observation) do not believe certain construct leads to undefined behavior or are confused and try to guess which is the ``correct'' result.
 
 In this chapter, we will show some examples of constructs leading to undefined behavior from most basic ones to some more obscure ones.
 
@@ -388,7 +390,7 @@ In this example, it is the case of \verb|&i|. Some other expressions, however, g
 \subsection{Node tagging}
 From this, we can conclude that every node can be tagged either as "implying a side effect", "not implying anything" or "making side effect impossible" on certain memory place given by certain DeclRefExpr. We can do this for each DeclRefExpr. The picture from the above would then be tagged as shown on figure \ref{ASTtagged}.
 \begin{figure}
-    \caption{Example 1~(\ref{example1}) AST graphical representation -- tagged}
+    \caption{Example 1~(\ref{example1}) AST graphical representation~--~tagged}
     \label{ASTtagged}
     \centering
         \includegraphics[width=0.6\textwidth]{fig/example1G-tagged.pdf}
@@ -439,7 +441,7 @@ Other implementations' failures were probably caused by the fact that they depen
 
 %----------------------------------------------------------------------------------------------------------------
 \subsection{Output of the alias analysis}
-Figure \ref{alias-output} shows part of the output of alias analysis of the example \ref{example2}. We can easily filter out the non-aliasing variables. Out of possible answers -- NoAlias, MayAlias, MustAlias -- the latter two are considered to confirm that an undefined behavior occurs. This may lead to false positives depending on alias analysis used -- MayAlias is not a definite answer and we simply choose possible false positives over false negatives.
+Figure \ref{alias-output} shows part of the output of alias analysis of the example \ref{example2}. We can easily filter out the non-aliasing variables. Out of possible answers~--~NoAlias, MayAlias, MustAlias~--~the latter two are considered to confirm that an undefined behavior occurs. This may lead to false positives depending on alias analysis used~--~MayAlias is not a definite answer and we simply choose possible false positives over false negatives.
 
 We see there are many temporary variables (the numbered ones) and not the original names of the variables. In order to match these temporary variables to real variable names, we need the LLVM IR of the original program.
 

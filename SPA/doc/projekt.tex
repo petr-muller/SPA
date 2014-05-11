@@ -37,6 +37,38 @@
 \definecolor{mygray}{rgb}{0.5,0.5,0.5}
 \definecolor{mymauve}{rgb}{0.58,0,0.82}
 
+\lstnewenvironment{code}[1][]%
+  {\minipage{\linewidth} 
+    \lstset{ %
+      backgroundcolor=\color{white},   % choose the background color; you must add \usepackage{color} or \usepackage{xcolor}
+      basicstyle=\footnotesize,        % the size of the fonts that are used for the code
+      breakatwhitespace=false,         % sets if automatic breaks should only happen at whitespace
+      breaklines=true,                 % sets automatic line breaking
+      captionpos=b,                    % sets the caption-position to bottom
+      commentstyle=\color{mygreen},    % comment style
+      deletekeywords={...},            % if you want to delete keywords from the given language
+      escapeinside={\%*}{*)},          % if you want to add LaTeX within your code
+      extendedchars=true,              % lets you use non-ASCII characters; for 8-bits encodings only, does not work with UTF-8
+      frame=single,                    % adds a frame around the code
+      keepspaces=true,                 % keeps spaces in text, useful for keeping indentation of code (possibly needs columns=flexible)
+      keywordstyle=\color{blue},       % keyword style
+      language=C,                 % the language of the code
+      morekeywords={*,...},            % if you want to add more keywords to the set
+      numbers=left,                    % where to put the line-numbers; possible values are (none, left, right)
+      numbersep=5pt,                   % how far the line-numbers are from the code
+      numberstyle=\tiny\color{mygray}, % the style that is used for the line-numbers
+      rulecolor=\color{black},         % if not set, the frame-color may be changed on line-breaks within not-black text (e.g. comments (green here))
+      showspaces=false,                % show spaces everywhere adding particular underscores; it overrides 'showstringspaces'
+      showstringspaces=false,          % underline spaces within strings only
+      showtabs=false,                  % show tabs within strings adding particular underscores
+      stepnumber=2,                    % the step between two line-numbers. If it's 1, each line will be numbered
+      stringstyle=\color{mymauve},     % string literal style
+      tabsize=2,                       % sets default tabsize to 2 spaces
+      title=\lstname                   % show the filename of files included with \lstinputlisting; also try caption instead of title
+    }
+  }
+  {\endminipage}
+
 \lstset{ %
   backgroundcolor=\color{white},   % choose the background color; you must add \usepackage{color} or \usepackage{xcolor}
   basicstyle=\footnotesize,        % the size of the fonts that are used for the code
@@ -97,7 +129,7 @@
   date=\today,           %datum odevzdani
   %Nazev prace
   title.cs={Vyhledávání výrazů s nedefinovaným chováním v jazyce C},  %nazev prace v cestine
-  title.en={Detection of expressions with undefined behavior in C}, %nazev prace v anglictine
+  title.en={Detection of Expressions with Undefined Behavior in C Language}, %nazev prace v anglictine
   %Autor
   author={Lukáš Hellebrandt},   %jmeno prijmeni autora
   %author.title.p=Bc., %titul pred jmenem (nepovinne)
@@ -112,15 +144,15 @@
   %bud pomoci nasledujicich parametru nebo pomoci vyhrazenych maker (viz dale)
   %===========================================================================
   %Klicova slova
-  keywords.cs={C, nedefinované chování, statická analýza, vedlejší efekt, sequence point, clang, llvm}, %klicova slova v ceskem jazyce
-  keywords.en={C, undefined behavior, static analysis, side effect, sequence point, clang, llvm}, %klicova slova v anglickem jazyce
+  keywords.cs={Jazyk C, nedefinované chování, statická analýza, vedlejší efekt, sekvenční bod, Clang, LLVM}, %klicova slova v ceskem jazyce
+  keywords.en={C language, undefined behavior, static analysis, side effect, sequence point, Clang, LLVM}, %klicova slova v anglickem jazyce
   %Abstract
-  abstract.cs={Práce se zabývá detekcí určitého druhu nedefinovaného chování v programech v jazyce C. Zaméřujeme se na nedefinované chování týkájící se sequence pointů a vedlejších efektů, s důrazem na funkčnost i v případě přístupu k paměti přes ukazatel nebo volání funkce. K tomu je použita statická analýza. Je proveden teoretický rozbor, vysvětlení pojmů jako nedefinované chování nebo vedlejší efekt. Dále je vysvětlena nebezpečnost konstrukcí vedoucích k tomuto chování. Nakonec je navržen nástroj pro automatizovanou detekci a popsány principy jeho funkce. Práce obsahuje příklady nebezpečných konstrukcí, na některých z nich jsou demonstrovány funkce vytvořeného nástroje.}, % abstrakt v ceskem jazyce
-  abstract.en={This thesis engages in detection of certain kind of undefined behavior in the C language programs. We focus on undefined behavior related to sequence points and side effects, stressing its functionality even in cases like accessing the memory via a pointer or function calling. Static analysis is used for this purpose. A theoretical analysis is done and terms like undefined behavior or side effect are explained. Furthermore, explanation of constructs leading to this behavior is done. Finally, a tool for automated detection is proposed and principles of its function shown. The thesis contains examples of dangerous constructs, functions of the created tool are demonstrated on some of them.}, % abstrakt v anglickem jazyce
+  abstract.cs={Práce se zabývá detekcí nedefinovaného chování v programech v jazyce C. Zaměřujeme se na nedefinované chování vznikající nesprávnou prací se sekvenčními body a vedlejšími efekty. Provedeme teoretický rozbor a pojmy jako nedefinované chování nebo vedlejší efekt zasadíme do kontextu práce. Dále je vysvětlíme nebezpečnost konstrukcí vedoucích k nedefinovanému chování. Nakonec navrhneme a implementujeme nástroj pro automatizovanou statickou detekci a popíšeme principy jeho funkce. Při jeho návrhu klademe, narozdíl od současných řešení, důraz na funkčnost i v případě přístupu k paměti přes ukazatel nebo z volané funkce. Práce obsahuje příklady nebezpečných konstrukcí, na některých z nich jsou demonstrovány funkce vytvořeného nástroje.}, % abstrakt v ceskem jazyce
+  abstract.en={This thesis engages in detection of undefined behavior in the C language programs. We focus on undefined behavior stemming from incorrect work with sequence points and side effects. We perform a theoretical analysis and put terms like undefined behavior or side effect in context of the paper. Furthermore, we explain dangerousness of the constructs leading to undefined behavior. Finally, a tool for automated static detection is designed and implemented and principles of its function shown. During designing of a tool, contrary to current solutions, its functionality even in cases like accessing the memory via a pointer or from a called function has been stressed. The thesis contains examples of dangerous constructs, functions of the created tool are demonstrated on some of them.}, % abstrakt v anglickem jazyce
   %Prohlaseni
   declaration={Prohlašuji, že jsem tuto bakalářskou práci vypracoval samostatně pod vedením pana Petra Müllera.},
   %Podekovani (nepovinne)
-  acknowledgment={Děkuji panu Müllerovi za vedení mé práce a mnoho inspirujících podnětů. Dále panu Peringerovi a panu Husárovi za cenné rady.} % nepovinne
+  acknowledgment={Děkuji panu Müllerovi za vedení mé práce a mnoho inspirujících podnětů.} % nepovinne
 }
 
 %Abstrakt (cesky, anglicky)
