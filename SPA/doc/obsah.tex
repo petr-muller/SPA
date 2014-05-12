@@ -243,9 +243,9 @@ int main(){
 As \verb|i| points to the same memory location as \verb|*j|, i.e. if the two variables \emph{alias}, the example still leads to the undefined behavior. Otherwise, however, it would not, because there would not be more than one memory modification \emph{to the same memory location}. Therefore we need to be able to determine whether the two variables alias in order to detect undefined behavior considering the use of pointers.
 %%%%%%%%%%%%
 \section{Existing solutions}\label{test-of-others}
-Currently we know about two existing solutions capable of very basic detection of this kind of undefined behavior, both included in widely used compilers, Clang~\cite{Clang} and GCC~\cite{GCC}. Another tools are PVS-Studio~\cite{PVSStudio}, Cppcheck~\cite{cppcheck}, Astrée~\cite{astree} and Coverity~\cite{coverity}, that are specifically meant for static analysis. Errors caused by such undefined behavior occurences can also be detected at runtime with dynamic analysis tools such as CompCert~\cite{CompCert}.
+Currently we know about two existing solutions capable of very basic detection of this kind of undefined behavior, both included in widely used compilers, Clang~\cite{Clang} and GCC~\cite{GCC}. Another tools are PVS-Studio~\cite{PVSStudio}, Cppcheck~\cite{cppcheck}, Astrée~\cite{astree} and Coverity~\cite{coverity}, that are specifically meant for static analysis. Errors caused by such undefined behavior occurrences can also be detected at runtime with dynamic analysis tools such as CompCert~\cite{CompCert}.
 \subsection{GCC}
-GCC's \verb|-Wsequence-point| modifier is able to detect some basic occurences of side-effect related undefined behavior, but fails in cases as basic as using a function with side effect or side effect on a memory accessed via pointer.
+GCC's \verb|-Wsequence-point| modifier is able to detect some basic occurrences of side-effect related undefined behavior, but fails in cases as basic as using a function with side effect or side effect on a memory accessed via pointer.
 
 The example output of compilatipon of a Example~\ref{example1} \emph{without} using pointers:
 \\\begin{code}
@@ -309,7 +309,7 @@ Clang itself doesn't have a tool for this and doesn't allow us to easily bind so
 \section{High-level architecture}
 For reasons shown in the previous chapter, the SPA will consist of two phases. The first phase is generating a set of constraints under which the behavior is undefined. This part is implemented as a plugin for the Clang compiler. The second phase will check these constraints and produce the final output. This phase is implemented as a Bash script using alias analysis implemented in LLVM.
 
-Provided we have access to the AST, we can detect some \emph{potential} occurences of undefined behavior. The AST gives us information on variables and operations they are involved in. However, without implementing our own alias analysis, we are not able to determine whether two variables alias or not -- hence ``potential'' undefined behavior. This said, the goal of the first part of our project is to merely generate a set of constraints saying under what conditions the undefined behavior may occur. For our Example 2~\ref{example2}, the goal is to generate a rule saying "On the row 4, there is undefined behavior \emph{if} \verb|*j| aliases with \verb|i|". The exact method of generating these constraints will be shown later. We have necessary access to the AST from the Clang plugin. A Clang plugin is also an option that fully uses Clang's modularity. It can be run at compile-time, can be ommited from running, and is extendable easily as we have access to most of the information Clang can provide.
+Provided we have access to the AST, we can detect some \emph{potential} occurrences of undefined behavior. The AST gives us information on variables and operations they are involved in. However, without implementing our own alias analysis, we are not able to determine whether two variables alias or not -- hence ``potential'' undefined behavior. This said, the goal of the first part of our project is to merely generate a set of constraints saying under what conditions the undefined behavior may occur. For our Example 2~\ref{example2}, the goal is to generate a rule saying "On the row 4, there is undefined behavior \emph{if} \verb|*j| aliases with \verb|i|". The exact method of generating these constraints will be shown later. We have necessary access to the AST from the Clang plugin. A Clang plugin is also an option that fully uses Clang's modularity. It can be run at compile-time, can be ommited from running, and is extendable easily as we have access to most of the information Clang can provide.
 
 This set of constraints can be checked later on either in LLVM or using some external alias analysis, and a script for that can be considered the second part. This constraint-checking part will be implemented as a bash script, that uses alias analysis in LLVM. The alias analysis implemented in LLVM can be run on the LLVM IR (``intermediate representation'', ``bitcode''). The reason we can not do this directly is that undefined behavior in the C source code is already well-defined after translating to the LLVM IR. We can not find any undefined behavior in LLVM IR as it does not need to correspond to the original C source code at all (and indeed, it does not as LLVM IR is a intermediate representation suitable from multiple programming languages). This means we need to map some parts of the LLVM IR, which the alias analysis will be run on, to the original source code. We will use the debugging information for this purpose.
 
@@ -408,7 +408,7 @@ int main(void){
 
 \end{code}
 
-In this example, it is the case of \verb|&i|. Some other expressions, however, get rid of the operand address irreversibly and we can be sure it will never be used as an L-value until its next occurence. An example of this is the \verb|a| variable in the conditional operator from the code above: it can never more be used as an L-value in the whole subtree with the assignment it appears in as the conditional operator just uses it and throws it away.
+In this example, it is the case of \verb|&i|. Some other expressions, however, get rid of the operand address irreversibly and we can be sure it will never be used as an L-value until its next occurrence. An example of this is the \verb|a| variable in the conditional operator from the code above: it can never more be used as an L-value in the whole subtree with the assignment it appears in as the conditional operator just uses it and throws it away.
 
 %----------------------------------------------------------------------------------------------------------------
 \subsection{Node tagging}
@@ -438,7 +438,7 @@ Each possible undefined behavior is on one line. The format is
 \\``\verb|function b_row b_col e_row e_col variable1 variable2|''
 if the constraint needs to be checked because \verb|variable1| and \verb|variable2| are different, or
 \\``\verb|function b_row b_col e_row e_col variable|''
-if no further check is needed as the possible undefined behavior comes from occurences of the same variable. \verb|b_row| and \verb|b_col| denote the row and column of the beginning of statement the undefined behavior occurs in and \verb|e_row| and \verb|e_col| denote its end.
+if no further check is needed as the possible undefined behavior comes from occurrences of the same variable. \verb|b_row| and \verb|b_col| denote the row and column of the beginning of statement the undefined behavior occurs in and \verb|e_row| and \verb|e_col| denote its end.
 
 \begin{figure}
 \caption{Output of the first part of the SPA}
@@ -457,6 +457,8 @@ This output can then be used by any external alias analysis.
 \section{Checking the constraints}
 Once the constraints are generated, there are many means of checking them. Any alias analysis may be used and it is the alias analysis used what decides an algorithm used for comparing it with the constraints as the output and information received from the alias analysis may vary for each implementation. We will further describe our actual implementation which is a bash script using a built-in alias analysis of the LLVM. We will use the example \ref{example2} (\verb|i = (*1)++|) for the following examples.
 
+As we said previously, it is necessary to map the LLVM IR to the original source code. This requires two steps~--~translating temporary variable names to those of the original variables and mapping to the original location in the source code. Then, the constraints generated in the previous part can be compared to these translated aliases.
+
 %----------------------------------------------------------------------------------------------------------------
 \subsection{Alias analysis implementation}
 We used the alias analysis implemented in the LLVM. It offers multiple versions of alias analysis and after testing, the ``basic'' alias analysis was evaluated as best. This implementation of alias analysis is simple and leads to many indefinite answers but in our case, it led to at least some results while other implementations seemed absolutely useless. Considering our approach to indefinite answers mentioned later and the results of the tests, the ``basic'' version seems to be absolutely sufficient.
@@ -469,7 +471,7 @@ Figure \ref{alias-output} shows part of the output of alias analysis of the exam
 
 We see there are many temporary variables (the numbered ones) and not the original names of the variables. In order to match these temporary variables to real variable names, we need the LLVM IR of the original program.
 
-The alias analysis can be run on the LLVM IR (``intermediate representation'', ``bitcode''), which can also be printed as a text and also can contain debug info. These three things are necessary for the following approach to work.
+The alias analysis can be run on the LLVM IR (``intermediate representation'', ``bitcode''), which can also be printed as a text and also can contain debugging information. These three elements are necessary for the following approach to work.
 \begin{figure}
 \caption{Output of the alias analysis}
 \label{alias-output}
@@ -510,11 +512,11 @@ define i32 @main() #0 {
 \end{code}
 \end{figure}
 
-For multiple functions, the results are similar and LLVM IR keeps the division into function so we are able to filter out all the functions we do not currently want to match against. This is important because temporary variable names are not unique across functions.
+For programs with multiple functions, the results are similar to those demonstrated and LLVM IR keeps the division into functions so we are able to filter out all the functions we do not currently want to match against. This is important because temporary variable names are not unique across functions.
 
 %----------------------------------------------------------------------------------------------------------------
 \subsection{Matching translated aliases to their original location}
-Figure \ref{debuginfo} shows the debug info necessary to match the aliasing info to the original source code. Using the link to debug info from a LLVM IR, we can find the correct debug info which contains information on location in the source file and the function name. The row is the first argument, the column the second argument and the third argument is a link to another debug info (in this case \verb|!dbg !4|) which contains information about the function the undefined behavior occurs in.
+Figure \ref{debuginfo} shows the debugging information necessary to match the aliasing info to the original source code. Using the link to debugging information from a LLVM IR, we can find the correct debugging information which contains information on location in the source file and the function name. The row is the first argument, the column the second argument and the third argument is a link to another debugging information (in this case \verb|!dbg !4|) which contains information about the function the undefined behavior occurs in.
 
 \begin{figure}
 \caption{Debug info}
@@ -545,7 +547,7 @@ $ llvm-dis test1A.bc -o -
 \end{code}
 \end{figure}
 
-In order to get access to this debug info, we need to compile to the bitcode using \verb|-g3| (for debug info in general) and \verb|-gcolumn-info| (for columnt information, otherwise it would be always 0 for performance reasons) parameters.
+In order to get access to this debugging information, we need to compile to the bitcode using \verb|-g3| (for debugging information in general) and \verb|-gcolumn-info| (for columnt information, otherwise it would be always 0 for performance reasons) parameters.
 %----------------------------------------------------------------------------------------------------------------
 \subsection{Constraints and translated aliases comparison}\label{flaw}
 The described method will lead to a set of constraints from the first part of the SPA (figure \ref{first-part-output}) \emph{and} a set of aliases matched with their original names and locations (``translated aliases''). It is then a matter of comparing two lists, each item with each, and if some of them matches, it indicates the undefined behavior.
@@ -566,7 +568,7 @@ int main(void){
 \end{figure}
 %----------------------------------------------------------------------------------------------------------------
 \subsection{Output format}
-The output of the second part is meant to be the final output of the SPA for the user. It shows actual undefined behavior occurences (in contrast with the first part showing all \emph{possible} occurences), the function name, the \emph{approximate position} and names of the variable(s) causing the undefined behavior.
+The output of the second part is meant to be the final output of the SPA for the user. It shows actual undefined behavior occurrences (in contrast with the first part showing all \emph{possible} occurrences), the function name, the \emph{approximate position} and names of the variable(s) causing the undefined behavior.
 
 Example output:
 \\\begin{code}
@@ -580,13 +582,13 @@ Possible undefined behavior in function "main" at [16,5] - "*k" aliases with "i"
 In this chapter, we will briefly describe the implementation and show tests and their results.
 %================================================================================================================
 \section{Implementation}
-The project consists of: \verb|Makefile|, the Clang plugin part (\verb|SPA.cpp|, \verb|LvalueTable.cpp|), alias analysis part (\verb|run.sh| and \verb|debugrun.sh| bash scripts), and support files like documentation and examples.
-
-The Makefile is written so that it automatically downloads latest versions of all the necessary software, such as Clang or LLVM, and installs them together with SPA in the current directory.
+The project consists of the Clang plugin part (\verb|SPA.cpp|, \verb|LvalueTable.cpp|), alias analysis part (\verb|run.sh| and \verb|debugrun.sh| bash scripts), and support files like \verb|Makefile|, documentation and examples.
 
 The Clang plugin part consists of two \verb|.cpp| files. For implementation reasons, there are no header files. The \verb|SPA.cpp| file consists of the part connecting the SPA with Clang and of the part traversing the AST and deciding what node should be tagged. The \verb|LvalueTable.cpp| file provides functions for actual tagging of nodes and generating the final constraints.
 
-The alias analysis part is a Bash script \verb|run.sh| that uses the output of the first part, and together with LLVM IR, alias analysis output and debug info checks the constraints and provides the final output to the user. The \verb|run.sh| script is what user invokes directly. There is also a \verb|debugrun.sh| file automatically generated from a \verb|run.sh| file during a \verb|make| command, that shows The constraints, LLVM IR, debug info, alias analysis output and the final output rather than only the final output. See the example debug output in the figure \ref{debug}.
+The alias analysis part is a Bash script \verb|run.sh| that uses the output of the first part, and together with LLVM IR, alias analysis output and debugging information checks the constraints and provides the final output to the user. The \verb|run.sh| script is what user invokes directly. There is also a \verb|debugrun.sh| file automatically generated from a \verb|run.sh| file during a \verb|make| command, that shows The constraints, LLVM IR, debugging information, alias analysis output and the final output rather than only the final output. See the example debug output in the figure \ref{debug}.
+
+The Makefile is written so that it automatically downloads latest versions of all the necessary software, such as Clang or LLVM, and installs them together with SPA in the current directory.
 
 The documentation source files in latex are in a \verb|SPA/doc| folder, the installation instructions are in \verb|INSTALL.txt| and very basic info about the SPA is in \verb|README.md|.
 
@@ -649,7 +651,7 @@ Here we discuss the SPA's potential for further development and possible usabili
 
 The first part is a Clang plugin. As any other Clang plugin, it uses an interface that is \emph{not considered stable}~\cite{clang-unstable} and would need to be consistently developed should it be a par of upstream. The plugin itself works well and may serve as a starting point for further development.
 
-The second part is not as rigid as the first one. It can be easily replaced by some other script using some other alias analysis implementation. It has a flaw described in \ref{flaw}. It relies on exact output format of alias analysis which is, however, not considered stable. This part is innovative in means of mapping the original variable name and location to a temporary variable via debug info, but should not be considered stable nor should any further development be based on it.
+The second part is not as rigid as the first one. It can be easily replaced by some other script using some other alias analysis implementation. It has a flaw described in \ref{flaw}. It relies on exact output format of alias analysis which is, however, not considered stable. This part is innovative in means of mapping the original variable name and location to a temporary variable via debugging information, but should not be considered stable nor should any further development be based on it.
 
 As to including the whole SPA to upstream, there is generally one issue that makes it difficult and arguably useless: it doesn't find the final results during the compilation. It merely generates constraints which need to be further checked, that is what \verb|run.sh| does. That means this check can't be transparently added to the Clang compile-time checks without major changes in the Clang's architecture.
 
@@ -738,7 +740,7 @@ For debug mode, use \begin{verbatim}./debugrun <file.c>\end{verbatim} instead.
 To generate this documentation, run \verb|make| in \verb|SPA/doc|.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Conclusion}
-A tool has been implemented that searches for undefined behavior related to side effects and sequence points in the C language programs. It consists of two parts, the first part generates a list of \emph{possible} undefined behavior occurences and the second part verifies these constraints and generates the final user-readable output. The first part is implemented as a Clang plugin, the second as a Bash script using alias analysis in LLVM.
+A tool has been implemented that searches for undefined behavior related to side effects and sequence points in the C language programs. It consists of two parts, the first part generates a list of \emph{possible} undefined behavior occurrences and the second part verifies these constraints and generates the final user-readable output. The first part is implemented as a Clang plugin, the second as a Bash script using alias analysis in LLVM.
 
 The tests have shown the accuracy of 95\%, positive predictive value of 94\% and negative predictive value of 100\%. The only failed test failed due to the known flaw  originating in alias analysis giving not enough information.
 
