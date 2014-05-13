@@ -80,7 +80,7 @@ int main(void){
 }
 \end{code}
 
-The assignment operator modifies the same memory as the post-increment operator while there is no sequence point between them. Not only does this operation have unspecified results (which most of the people who have seen it for the first time admitted after our explanation) but it leads to undefined behavior rendering the whole meaningless and dangerous.
+The assignment operator modifies the same memory as the post-increment operator while there is no sequence point between them. Not only does this operation have unspecified results (which most of the people who have seen it for the first time admitted after our explanation) but it leads to undefined behavior rendering the whole program meaningless and dangerous.
 
 \section{Example 2}\label{example2}
 The second example is almost the same except for one thing: the second operand of the assignment is now accessed via pointer.
@@ -664,13 +664,13 @@ We will test the application using a prepared set of testcases. These can also b
 In this section, we will describe testcases and statistically analyze the results.
 %----------------------------------------------------------------------------------------------------------------
 \subsection{Testcases}
-Currently there are 22 tests. Some of them use pointers. Results of some of them are expected to be positive (undefined behavior found), some are expected to be negative. See details in the table:\\
+Currently there are 24 tests. Some of them use pointers. Results of some of them are expected to be positive (undefined behavior found), some are expected to be negative. See details in the table:\\
 
 \begin{centering}
 \begin{tabular}{|l|l|l|}
 \hline
                  & Positive & Negative \\\hline
-With pointers    & 7        & 4        \\\hline
+With pointers    & 7        & 6        \\\hline
 Without pointers & 9        & 2        \\\hline
 \end{tabular}\\
 \end{centering}
@@ -688,16 +688,16 @@ The results are shown in the following table:
 \begin{tabular}{|r|r|}
 \hline
 True Positives                         &             16   \\\hline
-True Negatives                         &              4   \\\hline
+True Negatives                         &              6   \\\hline
 False Positives                        &              2   \\\hline
 False Negatives                        &              0   \\\hline\hline
 \textbf{Sensitivity}                   & \textbf{100\%}   \\\hline
-\textbf{Specificity}                   &  \textbf{67\%}   \\\hline
-Fall-out                               &           33\%   \\\hline
+\textbf{Specificity}                   &  \textbf{75\%}   \\\hline
+Fall-out                               &           25\%   \\\hline
 \textbf{Positive predictive value}     &  \textbf{89\%}   \\\hline
 \textbf{Negative predictive value}     & \textbf{100\%}   \\\hline
 False discovery rate                   &            11\%   \\\hline\hline
-\textbf{Accuracy}                      &  \textbf{91\%}   \\\hline
+\textbf{Accuracy}                      &  \textbf{92\%}   \\\hline
 \end{tabular}\\
 \end{centering}
 
@@ -716,7 +716,7 @@ The overall accuracy of the SPA is 91\% and the only error in the set is caused 
 
 The run took about 0.04 s on the testing machine (Intel Core i7 @ 2900 Mhz) on Example 2~\ref{example2}. On small files, it is generally fast enough to be used as a part of compilation.
 
-The tool has also been run on longer source codes such as school projects. The Constraint Generating part runs very fast on programs of almost any size~--~it only takes a few miliseconds. The Constraint Checking part can take very long even on medium-sized files~--~on a relatively small file with 203 constraints generated within 3 functions, it takes several minutes to check them. This is probably due to the implementation in Bash and the fact that the output of the alias analysis is not structured very well and needs to be parsed.
+The tool has also been run on longer source codes such as school projects. The Constraint Generating part runs very fast on programs of almost any size~--~it only takes a few miliseconds. The Constraint Checking part can take very long even on medium-sized files~--~on a relatively small file with 203 constraints generated within 3 functions, it takes several minutes to check them. This is probably due to implementation in Bash and the fact that the output of the alias analysis is not structured very well and needs to be parsed.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Installation and usage}

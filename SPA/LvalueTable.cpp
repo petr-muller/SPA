@@ -106,6 +106,7 @@ std::string LvalueTable::makeConstraints(){
         case clang::Stmt::CompoundStmtClass: // {}
         case clang::Stmt::ParenExprClass: // ()
         case clang::Stmt::ConditionalOperatorClass: // ? :
+        noConstraint: // && ||
         break;
 
         case clang::Stmt::BinaryOperatorClass:
@@ -150,6 +151,9 @@ std::string LvalueTable::makeConstraints(){
                     }
                 }
             }else{
+                if(static_cast<clang::BinaryOperator*>(i->first)->isLogicalOp()){
+                  goto noConstraint;
+                }
                 goto defaultClass;
             }
         break;
