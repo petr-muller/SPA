@@ -137,6 +137,7 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
             case Stmt::DoStmtClass:
             case Stmt::GotoStmtClass:
             case Stmt::CStyleCastExprClass:
+            case Stmt::MemberExprClass:
                 lvalueTable.set(this->currentFunDecl, parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl, childIndex);
                 return Use;
             break;

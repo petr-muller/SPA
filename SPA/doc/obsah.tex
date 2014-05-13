@@ -317,7 +317,7 @@ The following two sections will describe the exact methods of achieving each par
 
 
 %----------------------------------------------------------------------------------------------------------------
-\subsection{Functions}
+\subsection{Functions}\label{functions}
 We are not aware of any alias analysis capable of determining whether two objects in different functions alias.
 
 \begin{figure}
@@ -342,7 +342,9 @@ int main(){
 \end{code}
 \end{figure}
 
-In the case shown in the figure \ref{functions-source}, the most performance-efficient and easiest approach is just stating that if the function \emph{can} use its argument as an L-value (meaning it has the object pointer or some object it can get it from as an argument), we will assume it \emph{does}. This can be improved later either by using some implementation of cross-function alias analysis or changing the implementation so we change the output format to allow logical operations between constraints and checking which function arguments have a side effect on them in the function. Whether these parameters \emph{do} have a side effect on them in that function would then be logically multiplicated with the constraint the function is called from. The second option would not be easily reusable and would do a little or no improvement to the tool as it is a prototype showing the methods described in this paper.
+In the case shown in the figure \ref{functions-source}, the most performance-efficient and easiest approach is just stating that if the function \emph{can} use its argument as an L-value (meaning it has the object pointer or some object it can get it from as an argument), we will assume it \emph{does}. This can be improved later either by using some implementation of cross-function alias analysis or changing the implementation so we change the output format to allow logical operations between constraints and checking which function arguments have a side effect on them in the function. Whether these parameters \emph{do} have a side effect on them in that function would then be logically multiplicated with the constraint the function is called from.
+
+The second option would not be easily reusable and would do a little or no improvement to the tool as it is a prototype showing the methods described in this paper. We believe this issue should be solved on the alias analysis side and the tool's goal should be merely generating constraints which can then be checked by some future implementation of cross-function alias analysis.
 
 \subsection{Restrict keyword}
 The \verb|restrict| keyword means that the pointer variable declared as \verb|restrict| \emph{and} pointers derived from it are the only pointers of that type used pointing to the memory that variable points to.~\cite{WG14N1570} This applies to the whole lifetime of that variable.
@@ -393,7 +395,7 @@ As we can see, we can determine what (if any) child node is the side effect goin
 
 When a child node has a side effect on certain variable, the parent also has side effect on that same variable. Let there be a node A and a node B that is A's ancestor. When we go several levels up from node A towards the root and stop in node B, we can see the side effect can not disappear. The subtree of B in which the node A is still has the side effect on the same memory address.
 
-There is a special type of node in the AST~--~a referrence to variable declaration. It is called DeclRefExpr in Clang and is always a leaf of the AST. We therefore can start from the DeclRefExpr nodes and while traversing the tree up to the root, decide whether the current node implies a side effect on a given DeclRefExpr.
+There is a special type of node in the AST~--~a reference to variable declaration. It is called DeclRefExpr in Clang and is always a leaf of the AST. We therefore can start from the DeclRefExpr nodes and while traversing the tree up to the root, decide whether the current node implies a side effect on a given DeclRefExpr.
 
 %----------------------------------------------------------------------------------------------------------------
 \subsection{L-value scope}
@@ -699,13 +701,22 @@ False discovery rate                   &            11\%   \\\hline\hline
 \end{tabular}\\
 \end{centering}
 
-As we can see, there were no false negatives, which means that the SPA never ``missed'' an actual undefined behavior. In this test set, we have found one false positive. This false positive was caused by the second phase and is caused by the flaw described in the second paragraph of \ref{flaw}. The test was created with this flaw specifically in mind.
+As we can see, there were no false negatives, which means that the SPA never ``missed'' an actual undefined behavior. In this test set, we have found two false positives.
 
-After some statistical analysis, we see that, based on this test set, if there is no undefined behavior detected, there is certainly no undefined behavior (related to sequence points and side effects) and if there is some undefined behavior detected, there is a 94\% chance there actually is undefined behavior.
+One of these false positives was caused by the second phase and the flaw described in the second paragraph of \ref{flaw}. If two variables alias at some point in the function, they are considered as aliasing to the end of the same function even if they do not alias anymore. This was necessary due to insufficient information we can get from the alias analysis output. In it solely a matter of the second phase implementation and if we decide to use some other alias analysis, this problem may not occur at all. The test was created with this flaw specifically in mind. %TODO
 
-The overall accuracy of the SPA is 95\% and the only error in the set is caused by the second phase of the SPA.
+The second false positive was caused by our approach to the function side effects on their parameters. In \ref{functions}, we described it as ``if the function \emph{can} use its argument as an L-value (meaning it has the object pointer or some object it can get it from as an argument), we will assume it \emph{does}''. This can not be considered a bug in the implementation. It is the flaw we expected this approach to have. In the referenced chapter, we argue why this is sufficient and changing this approach would render the SPA harder to reuse and inconsistent with the philosophy of the tool.
 
-The run took about 0.04 s on the testing machine (Intel Core i7 @ 2900 Mhz) on Example 2~\ref{example2} and is generally fast enough to be used as a part of compilation.
+%----------------------------------------------------------------------------------------------------------------
+\subsection{Test results evaluation}
+
+After some statistical analysis, we see that, based on this test set, if there is no undefined behavior detected, there is certainly no undefined behavior (related to sequence points and side effects). If there is some undefined behavior detected, there is a 89\% chance there actually is undefined behavior.
+
+The overall accuracy of the SPA is 91\% and the only error in the set is caused by the second phase of the SPA.
+
+The run took about 0.04 s on the testing machine (Intel Core i7 @ 2900 Mhz) on Example 2~\ref{example2}. On small files, it is generally fast enough to be used as a part of compilation.
+
+The tool has also been run on longer source codes such as school projects. The Constraint Generating part runs very fast on programs of almost any size~--~it only takes a few miliseconds. The Constraint Checking part can take very long even on medium-sized files~--~on a relatively small file with 203 constraints generated within 3 functions, it takes several minutes to check them. This is probably due to the implementation in Bash and the fact that the output of the alias analysis is not structured very well and needs to be parsed.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Installation and usage}
