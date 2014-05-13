@@ -586,7 +586,7 @@ The project consists of the Clang plugin part (\verb|SPA.cpp|, \verb|LvalueTable
 
 The Clang plugin part consists of two \verb|.cpp| files. For implementation reasons, there are no header files. The \verb|SPA.cpp| file consists of the part connecting the SPA with Clang and of the part traversing the AST and deciding what node should be tagged. The \verb|LvalueTable.cpp| file provides functions for actual tagging of nodes and generating the final constraints.
 
-The alias analysis part is a Bash script \verb|run.sh| that uses the output of the first part, and together with LLVM IR, alias analysis output and debugging information checks the constraints and provides the final output to the user. The \verb|run.sh| script is what user invokes directly. There is also a \verb|debugrun.sh| file automatically generated from a \verb|run.sh| file during a \verb|make| command, that shows The constraints, LLVM IR, debugging information, alias analysis output and the final output rather than only the final output. See the example debug output in the figure \ref{debug}.
+The alias analysis part is a Bash script \verb|run.sh| that uses the output of the first part, and together with LLVM IR, alias analysis output and debugging information checks the constraints and provides the final output to the user. The \verb|run.sh| script is what user invokes directly. There is also a \verb|debugrun.sh| file automatically generated from a \verb|run.sh| file during a \verb|make| command, additionally showing the constraints, LLVM IR, debugging information, alias analysis output and the final output rather than only the final output. See the example debug output in the figure \ref{debug}.
 
 The Makefile is written so that it automatically downloads latest versions of all the necessary software, such as Clang or LLVM, and installs them together with SPA in the current directory.
 
@@ -649,9 +649,9 @@ Possible undefined behavior in function "main" at [6,3] - "*j" aliases with "i"
 \subsection{Further development}
 Here we discuss the SPA's potential for further development and possible usability for upstream.
 
-The first part is a Clang plugin. As any other Clang plugin, it uses an interface that is \emph{not considered stable}~\cite{clang-unstable} and would need to be consistently developed should it be a par of upstream. The plugin itself works well and may serve as a starting point for further development.
+The first part is a Clang plugin. As any other Clang plugin, it uses an interface that is \emph{not considered stable}~\cite{clang-unstable} and would need to be consistently developed should it be a part of upstream. The plugin itself works well and may serve as a starting point for further development.
 
-The second part is not as rigid as the first one. It can be easily replaced by some other script using some other alias analysis implementation. It has a flaw described in \ref{flaw}. It relies on exact output format of alias analysis which is, however, not considered stable. This part is innovative in means of mapping the original variable name and location to a temporary variable via debugging information, but should not be considered stable nor should any further development be based on it.
+The second part is not as rigid as the first one. It can be easily replaced by some other script using some other alias analysis implementation. It has a flaw described in \ref{flaw}. It relies on an exact output format of alias analysis which is, however, not considered stable. This part is innovative in means of mapping the original variable name and location to a temporary variable via debugging information, but should not be considered stable nor should any further development be based on it.
 
 As to including the whole SPA to upstream, there is generally one issue that makes it difficult and arguably useless: it doesn't find the final results during the compilation. It merely generates constraints which need to be further checked, that is what \verb|run.sh| does. That means this check can't be transparently added to the Clang compile-time checks without major changes in the Clang's architecture.
 
@@ -662,45 +662,50 @@ We will test the application using a prepared set of testcases. These can also b
 In this section, we will describe testcases and statistically analyze the results.
 %----------------------------------------------------------------------------------------------------------------
 \subsection{Testcases}
-Currently there are 21 tests. Some of them use pointers. Results of some of them are expected to be positive (undefined behavior found), some are expected to be negative. See details in the table:\\
+Currently there are 22 tests. Some of them use pointers. Results of some of them are expected to be positive (undefined behavior found), some are expected to be negative. See details in the table:\\
 
+\begin{centering}
 \begin{tabular}{|l|l|l|}
 \hline
                  & Positive & Negative \\\hline
-With pointers    & 7        & 3        \\\hline
+With pointers    & 7        & 4        \\\hline
 Without pointers & 9        & 2        \\\hline
 \end{tabular}\\
+\end{centering}
 
 The tests vary in constructions used, use different data types, statement types and undefined behavior origins. Most of them are in a pointer and non-pointer version. They are part of both the repository and the attached source codes.
 
-Some of these cases are: undefined behavior while indexing arrays, functions, ignoring compound statements, correct resolving of sequence points in a ternary operator, tricks to make alias analysis fail, etc.
+Some of these cases are: undefined behavior while indexing arrays, functions, ignoring compound statements, correct resolving of sequence points in a ternary operator, tricks to make alias analysis fail, etc. Tests were designed with the design of the tool and its flaws in mind so they can be considered as worst-case scenarios.
 
 %----------------------------------------------------------------------------------------------------------------
 \subsection{Test results}
 
 The results are shown in the following table:
 
+\begin{centering}
 \begin{tabular}{|r|r|}
 \hline
 True Positives                         &             16   \\\hline
 True Negatives                         &              4   \\\hline
-False Positives                        &              1   \\\hline
+False Positives                        &              2   \\\hline
 False Negatives                        &              0   \\\hline\hline
 \textbf{Sensitivity}                   & \textbf{100\%}   \\\hline
-\textbf{Specificity}                   &  \textbf{80\%}   \\\hline
-Fall-out                               &           20\%   \\\hline
-\textbf{Positive predictive value}     &  \textbf{94\%}   \\\hline
+\textbf{Specificity}                   &  \textbf{67\%}   \\\hline
+Fall-out                               &           33\%   \\\hline
+\textbf{Positive predictive value}     &  \textbf{89\%}   \\\hline
 \textbf{Negative predictive value}     & \textbf{100\%}   \\\hline
-False discovery rate                   &            6\%   \\\hline\hline
-\textbf{Accuracy}                      &  \textbf{95\%}   \\\hline
-F1 score                               &           97\%   \\\hline
+False discovery rate                   &            11\%   \\\hline\hline
+\textbf{Accuracy}                      &  \textbf{91\%}   \\\hline
 \end{tabular}\\
+\end{centering}
 
 As we can see, there were no false negatives, which means that the SPA never ``missed'' an actual undefined behavior. In this test set, we have found one false positive. This false positive was caused by the second phase and is caused by the flaw described in the second paragraph of \ref{flaw}. The test was created with this flaw specifically in mind.
 
 After some statistical analysis, we see that, based on this test set, if there is no undefined behavior detected, there is certainly no undefined behavior (related to sequence points and side effects) and if there is some undefined behavior detected, there is a 94\% chance there actually is undefined behavior.
 
 The overall accuracy of the SPA is 95\% and the only error in the set is caused by the second phase of the SPA.
+
+The run took about 0.04 s on the testing machine (Intel Core i7 @ 2900 Mhz) on Example 2~\ref{example2} and is generally fast enough to be used as a part of compilation.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Installation and usage}

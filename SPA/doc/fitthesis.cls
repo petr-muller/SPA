@@ -346,11 +346,21 @@ Práce je chráněna autorským zákonem a její užití bez udělení oprávně
 
 \mktxt{11}{BRNO \@year}
 
-\newpage\fontfamily{\familydefault}\selectfont%
 %=================================================================================
+\newpage\fontfamily{\familydefault}\selectfont%
+\pagenumbering{gobble}
+\vspace*{5cm}
+\begin{center}
+\huge
+Zadání
+\normalsize
+\end{center}
+%=================================================================================
+\newpage\fontfamily{\familydefault}\selectfont%
 \makeabstract\makedeclaration
 \clearpage
 \setcounter{tocdepth}{2}\setcounter{page}{1}
+\pagenumbering{arabic}
 }
 
 %-----------------------------------------------------------------------------
