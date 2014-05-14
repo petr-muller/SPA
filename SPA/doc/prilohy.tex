@@ -1,6 +1,54 @@
-%\chapter{Obsah CD}
-%\chapter{Manual}
-%\chapter{Konfigrační soubor}
-%\chapter{RelaxNG Schéma konfiguračního soboru}
-%\chapter{Plakat}
+\chapter{DVD contents}
+The CD contains exactly the same content as the git repository at the time of burning the DVD. The only difference is that it also contains this documentation in pdf. The directory structure is as follows:
 
+\begin{itemize}
+\item Makefile -- the only thing you should need to make the whole tool running
+\item README.md and INSTALL.txt -- basic information about the tool and the installation instructions
+\item SPA -- the source files
+  \begin{itemize}
+  \item doc -- the source files for generating this documentation
+  \item examples -- the source files of tests/examples
+    \begin{itemize}
+      \item negative -- the source files of tests that are not supposed to find any undefined behavior
+    \end{itemize}
+  \item SPA.cpp, LvalueTable.cpp, run.sh -- the source code of the tool itself, as described in the ``Implementation and testing'' chapter
+  \end{itemize}
+\item projekt.pdf -- this documentation
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Installation and usage}
+In this chapter, we will discuss the software requirements of the SPA, its automated installation and manual installation. We will discuss the usage from user's point of view.%TODO and show and example
+%================================================================================================================
+\section{Requirements}
+The tool should run on any system capable of compiling and running LLVM and Clang \emph{and} invoking a Bash script in POSIX environment. It has been tested on Linux, specifically multiple versions of Fedora 17 and 19, both x86\_64 architecture.
+
+Clang is only required for the first part and full LLVM for the second part. The SPA uses the interfaces of Clang and LLVM that are both considered unstable so it might require specific versions of these tools. It has been tested on Clang 3.5.0  and LLVM 3.5.0.
+
+The best way to download the SPA is Git. The Makefile itself uses SVN which is therefore required for the automated installation.
+%================================================================================================================
+\section{Installation}
+\begin{enumerate}
+\item If you do not have the SPA, you need to download it, for example by
+\begin{verbatim}git clone https://github.com/KamikazeCZ/SPA.git\end{verbatim}
+
+\item Go to the newly created repository directory
+
+\item For automated installation, run
+\begin{verbatim}make\end{verbatim}
+\end{enumerate}
+%================================================================================================================
+\section{Manual installation}
+For manual installation, you need to download Clang and LLVM. Refer to points 1 to 5 of the Get Started guide~\cite{clang-get_started}. You do not need Clang extra tools.
+
+After following these instructions, you should have a \verb|llvm| directory with the source of both LLVM and Clang. Copy the SPA folder (the one \emph{inside} the repository) to \verb|llvm/tools/clang/tools|. Also copy the \verb|SPA/top-level-makefile/Makefile| file to \verb|llvm/tools/clang/tools|.
+
+This should have added the SPA as a Clang plugin and you can continue by point 6 of the Get Started guide.
+%================================================================================================================
+\section{Usage}
+To verify the correct installation, run \begin{verbatim}make run\end{verbatim} This is equivalent to running \begin{verbatim}./run SPA/examples/test1A.c\end{verbatim}
+
+Running \verb|./run <file.c>| is a standard way to run the whole SPA on certain file. It is a script executing both parts of the SPA. To only run the first part, run \begin{verbatim}build/Release+Asserts/bin/clang <file.c>\end{verbatim}
+For debug mode, use \begin{verbatim}./debugrun <file.c>\end{verbatim} instead.
+
+To generate this documentation, run \verb|make| in \verb|SPA/doc|.

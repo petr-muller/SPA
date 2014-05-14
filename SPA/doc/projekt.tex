@@ -9,7 +9,7 @@
 % připomínky posílejte na e-mail: bidlom AT fit.vutbr.cz
 % vim: set syntax=tex encoding=latin2:
 %============================================================================
-\documentclass[english]{fitthesis} % odevzdani do wisu - odkazy, na ktere se da klikat
+\documentclass[english,print]{fitthesis} % odevzdani do wisu - odkazy, na ktere se da klikat
 %\documentclass[cover,print]{fitthesis} % pro tisk - na odkazy se neda klikat
 %\documentclass[english,print]{fitthesis} % pro tisk - na odkazy se neda klikat
 %      \documentclass[english]{fitthesis}
@@ -28,6 +28,14 @@
 \usepackage{float}
 \usepackage{listings}
 \usepackage{color}
+\usepackage{varwidth}
+
+\usepackage{algpseudocode}
+    \algtext*{EndWhile}% Remove "end while" text
+    \algtext*{EndIf}% Remove "end if" text
+    \algtext*{EndFor}% Remove "end if" text
+    \newcommand{\Break}{\State \textbf{break}}
+
 
 \lstset{
     language = C

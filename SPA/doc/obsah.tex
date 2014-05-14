@@ -4,7 +4,7 @@
 \chapter{Introduction}
 The C programming language is a very powerful and efficient language for writing programs. Arguably the most important reason for this is that it is almost as low-level as a structured programming language can be. This leads to great freedom of choice and potentially very efficient resulting programs. With this freedom, however, comes a programmer's responsibility to avoid some language constructs to prevent possible unpredictable results~--~the undefined behavior in C.
 
-Our goal is to describe possible sources of undefined behavior related to sequence points and side effects (described in the rest of this chapter), design a tool for automated detection of this behavior and ultimately implement it. We will describe the necessary theoretical background, mention current solutions of this problem and their flaws. We will argue about the best way of implementing a new tool without these flaws and show some problems that must be overcome in order to do it. We will also make a set of examples. The final implemented tool will be tested on these examples.
+Our goal is to describe possible sources of undefined behavior related to sequence points and side effects (described in the rest of this chapter), design a tool for automated static detection of this behavior and ultimately implement it. We will describe the necessary theoretical background, mention current solutions of this problem and their flaws. We will argue about the best way of implementing a new tool without these flaws and show some problems that must be overcome in order to do it. We will also make a set of examples. The final implemented tool will be tested on these examples.
 
 In this chapter, we will describe the necessary theoretical background. The most important document to study regarding the C language is its most recent standard: ISO/IEC 9899:2011~\cite{C11} , informally known as \emph{ISO C11}. (For the purpose of this paper, we are going to use its last free and public draft available~\cite{WG14N1570})
 
@@ -144,7 +144,6 @@ int main(void){
 
 While the standard states that a \emph{comma operator} is a sequence point, in this case, the comma does not denote an \emph{operator}. The order of evaluation of the function arguments (calling \verb|a| and \verb|b| functions) is undefined and, in this particular case, it leads to undefined behavior as both of the functions have a side effect on the same variable.
 
-%FIXME: tohle neni nedefinovane chovani. poradi vyhodnocovani operaci ale neni definovano.
 \section{Example 5}\label{example5}
 Here we show the same problem when indexing arrays:
 \\\begin{code}
@@ -156,20 +155,22 @@ int main(void){
 }
 \end{code}
 
-The index is always the same (as the second operand of the assignment has no side effect), the value written may, however, be the value before or after incrementation. Note that \verb|arr[i-1]| is returned because \verb|i| was incremented as a side effect, but the value returned is its original value.
+This is an example of unsequenced modification \emph{and} read during the same sequence point. Not only don't we know the memory location and the value written, the program has undefined behavior.
 
 \section{Example 6}\label{example6}
-A subtle change may change the expected results completely.
+Usage of macro or other obfuscation can make the undefined behavior even harder to find:
 \\\begin{code}
-int main(void){
-    char arr[42];
-    int i = 0;
-    arr[i] = i++;
-    return arr[i-1];
+#define MACRO i = (*j)++;
+int main(){
+  int i = 0;
+  int *j = &i;
+  MACRO
+  return i;
+}
 }
 \end{code}
 
-In this case, we do not even know where the data will be written as \verb|i| may or may not be incremented before array subscription.
+This is the same as Example 2~\ref{example2}, only with a simple macro used. It makes the undefined behavior harder to observe.
 
 \section{Example 7}\label{example7}
 The last example shows an obvious case of undefined behavior where a programmer who is not aware of sequence point problematic would not expect any problem as the result seems to be the same regardless of the evaluation order.
@@ -184,7 +185,7 @@ int main(void){
 The difference between postfix and prefix incrementation is that, while they both increment the variable value, the postfix one returns the original value of the variable and the prefix one returns the incremented value. Many people would probably guess that no matter in which order the expression is evaluated, it will return the same value. Saying that would be the same mistake as we have shown in some of the previous examples as this expression modifies the same memory more than once within the same sequence point.
 
 \section{Summary}
-These are all examples of either unspecified results (while there is ``reasonably'' defined behavior for most of the implementations, the results may still be unexpected), or sometimes even of \emph{undefined behavior} (because the memory is modified more than once) where the implementation is not required to do anything particular. We will now show some ``positive'' examples of programs \emph{without} any unspecified results or undefined behavior.
+These are all examples of \emph{undefined behavior} where the implementation is not required to do anything particular. This is due to unsequenced modifications (or modifications and access) of the same memory location within one sequence point. We will now show some ``positive'' examples of programs \emph{without} any unspecified results or undefined behavior.
 
 \section{Positive example 1}
 While this code looks suspicious, it is perfectly fine:
@@ -227,9 +228,10 @@ While on first sight this looks similar to \verb|i = ++i;|, the \verb|i+1| expre
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Existing solutions and the goal of this work}
 As we described in the previous chapter, sequence-point related undefined behavior is potentially very dangerous and hard to detect before the real problem occurs. Some compiler implementations have very basic warnings for a programmer at compilation time, but most of them fail in any non-trivial case (as demonstrated in \ref{test-of-others}), for example using a function with a side effect or accessing the object via a pointer rather than directly. We will therefore try to compare some of these implementations, describe why their solutions are not powerful enough and briefly describe our concept of an automated tool for detection of the previously described behavior.
+
 %%%%%%%%%%%%
 \section{Aliasing}
-The above mentioned trivial case \verb|i = i++;| is relatively easy to detect and many compilers are able to detect it.
+The mentioned trivial case \verb|i = i++;| is relatively easy to detect and many compilers are able to detect it.
 We can determine it leads certainly to undefined behavior. But this decision is much more complicated when we consider using pointers as in this simple case:
 \\\begin{code}
 int main(){
@@ -241,9 +243,14 @@ int main(){
 \end{code}
 
 As \verb|i| points to the same memory location as \verb|*j|, i.e. if the two variables \emph{alias}, the example still leads to the undefined behavior. Otherwise, however, it would not, because there would not be more than one memory modification \emph{to the same memory location}. Therefore we need to be able to determine whether the two variables alias in order to detect undefined behavior considering the use of pointers.
+
+%%%%%%%%%%%%
+\section{Static analysis}
+As said at the beginning, our goal is implementing a tool that is able to detect undefined behavior \emph{statically}. Static program analysis is analyss of the program without actually executing the program~\cite{static-analysis}. In this case, it will be performed on the C code we want to test and possibly on the object code generated from it. In the following sections, we will focus mainly on static analysis solutions, but we will also mention some other possibilities.
+
 %%%%%%%%%%%%
 \section{Existing solutions}\label{test-of-others}
-Currently we know about two existing solutions capable of very basic detection of this kind of undefined behavior, both included in widely used compilers, Clang~\cite{Clang} and GCC~\cite{GCC}. Another tools are PVS-Studio~\cite{PVSStudio}, Cppcheck~\cite{cppcheck}, Astrée~\cite{astree} and Coverity~\cite{coverity}, that are specifically meant for static analysis. Errors caused by such undefined behavior occurrences can also be detected at runtime with dynamic analysis tools such as CompCert~\cite{CompCert}.
+Currently we know about two existing tools capable of very basic detection of sequence point related undefined behavior that are included in widely used compilers~--~Clang~\cite{Clang} and GCC~\cite{GCC}. Another tools are PVS-Studio~\cite{PVSStudio}, Cppcheck~\cite{cppcheck}, Astrée~\cite{astree} and Coverity~\cite{coverity}, that are specifically meant for static analysis. Errors caused by such undefined behavior occurrences can also be detected at runtime with dynamic analysis tools such as CompCert~\cite{CompCert}.
 \subsection{GCC}
 GCC's \verb|-Wsequence-point| modifier is able to detect some basic occurrences of side-effect related undefined behavior, but fails in cases as basic as using a function with side effect or side effect on a memory accessed via pointer.
 
@@ -424,6 +431,28 @@ From this, we can conclude that every node can be tagged either as "implying a s
 
 We began tagging from the left DeclRefExpr. It surely can be used as an L-value but the expression itself implies no side effect, hence the tag in italic ("not implying anything"). We went towards the root and as we passed the \verb|BinaryExpression (=)|, we mark it as an expression implying a side effect on \verb|i| (tag in bold) as it modifies the memory contents of \verb|i|. We continued to the top implicitly marking all the parent nodes as having a side effect on \verb|i|. Then we can do the same for the right DeclRefExpr and as we see two tags in bold of the same variable, we can say we found an undefined behavior.
 
+This method can also be described by the following algorithm:
+
+\noindent\fbox{%
+\begin{varwidth}{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}
+\begin{algorithmic}[1]
+\For {declRefExpr in declRefExprs}
+    \State node = declRefExpr
+    \While{node.type != functionDecl}
+        \If{nodeImpliesSideEffect(node)}
+            \State tagNodeAndAllPredecessors(node, declRefExpr)
+            \Break
+        \ElsIf{nodePreservesLvalue(node)}
+            \State node = node.parent
+        \Else{}
+            \Break
+        \EndIf
+    \EndWhile
+\EndFor
+\end{algorithmic}
+\end{varwidth}% 
+}
+
 %TODO tabulka - co delam s jednotlivymi druhy uzlu?
 
 %----------------------------------------------------------------------------------------------------------------
@@ -595,7 +624,7 @@ The Makefile is written so that it automatically downloads latest versions of al
 The documentation source files in latex are in a \verb|SPA/doc| folder, the installation instructions are in \verb|INSTALL.txt| and very basic info about the SPA is in \verb|README.md|.
 
 \begin{figure}
-\caption{Debug output}
+\caption{Full debug output}
 \label{debug}
 \begin{code}
 $ ./debugrun.sh SPA/examples/test1A.c
@@ -719,45 +748,13 @@ The run took about 0.04 s on the testing machine (Intel Core i7 @ 2900 Mhz) on E
 The tool has also been run on longer source codes such as school projects. The Constraint Generating part runs very fast on programs of almost any size~--~it only takes a few miliseconds. The Constraint Checking part can take very long even on medium-sized files~--~on a relatively small file with 203 constraints generated within 3 functions, it takes several minutes to check them. This is probably due to implementation in Bash and the fact that the output of the alias analysis is not structured very well and needs to be parsed.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\chapter{Installation and usage}
-In this chapter, we will discuss the software requirements of the SPA, its automated installation and manual installation. We will discuss the usage from user's point of view.%TODO and show and example
-%================================================================================================================
-\section{Requirements}
-The tool should run on any system capable of compiling and running LLVM and Clang \emph{and} invoking a Bash script in POSIX environment. It has been tested on Linux, specifically multiple versions of Fedora 17 and 19, both x86\_64 architecture.
-
-Clang is only required for the first part and full LLVM for the second part. The SPA uses the interfaces of Clang and LLVM that are both considered unstable so it might require specific versions of these tools. It has been tested on Clang 3.5.0  and LLVM 3.5.0.
-
-The best way to download the SPA is Git. The Makefile itself uses SVN which is therefore required for the automated installation.
-%================================================================================================================
-\section{Installation}
-\begin{enumerate}
-\item If you do not have the SPA, you need to download it, for example by
-\begin{verbatim}git clone https://github.com/KamikazeCZ/SPA.git\end{verbatim}
-
-\item Go to the newly created repository directory
-
-\item For automated installation, run
-\begin{verbatim}make\end{verbatim}
-\end{enumerate}
-%================================================================================================================
-\section{Manual installation}
-For manual installation, you need to download Clang and LLVM. Refer to points 1 to 5 of the Get Started guide~\cite{clang-get_started}. You do not need Clang extra tools.
-
-After following these instructions, you should have a \verb|llvm| directory with the source of both LLVM and Clang. Copy the SPA folder (the one \emph{inside} the repository) to \verb|llvm/tools/clang/tools|. Also copy the \verb|SPA/top-level-makefile/Makefile| file to \verb|llvm/tools/clang/tools|.
-
-This should have added the SPA as a Clang plugin and you can continue by point 6 of the Get Started guide.
-%================================================================================================================
-\section{Usage}
-To verify the correct installation, run \begin{verbatim}make run\end{verbatim} This is equivalent to running \begin{verbatim}./run SPA/examples/test1A.c\end{verbatim}
-
-Running \verb|./run <file.c>| is a standard way to run the whole SPA on certain file. It is a script executing both parts of the SPA. To only run the first part, run \begin{verbatim}build/Release+Asserts/bin/clang <file.c>\end{verbatim}
-For debug mode, use \begin{verbatim}./debugrun <file.c>\end{verbatim} instead.
-
-To generate this documentation, run \verb|make| in \verb|SPA/doc|.
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Conclusion}
-A tool has been implemented that searches for undefined behavior related to side effects and sequence points in the C language programs. It consists of two parts, the first part generates a list of \emph{possible} undefined behavior occurrences and the second part verifies these constraints and generates the final user-readable output. The first part is implemented as a Clang plugin, the second as a Bash script using alias analysis in LLVM.
+A tool has been implemented that searches for undefined behavior related to side effects and sequence points in the C language programs. The tool, called Sequence Point Analyzer, consists of two parts. The first part generates a list of \emph{possible} undefined behavior occurrences. The second part verifies these constraints and generates the final user-readable output. The first part is implemented as a Clang plugin, the second as a Bash script using alias analysis in LLVM.
 
-The tests have shown the accuracy of 95\%, positive predictive value of 94\% and negative predictive value of 100\%. The only failed test failed due to the known flaw  originating in alias analysis giving not enough information.
+Multiple problems arised and have been solved. The Constraint Generating part needed an algorithm for Abstract Syntax Tree traversal. This has been achieved by starting at each DeclRefExpr node and traversing to the root. DeclRefExpr is always a leaf of the AST. We also stated that if a node implies a side effect on certain variable, all its parent nodes have side effect on that same variable, too.
+
+The Constraint Checking part had to solve problems of mapping the LLVM IR to the original source code. This was necessary because a construct leading to undefined behavior in C is well-defined after translation to the LLVM IR. We therefore need to get the original names of temporary variables and the original location of the statement with undefined behavior. This was achieved by parsing certain parts of the LLVM IR and using the debugging information.
+
+The SPA has been tested and the tests have shown the accuracy of 91\%, positive predictive value of 89\% and negative predictive value of 100\%. This means, based on the tests, that if the program has undefined behavior related to sequence points, it will be detected. Also, if an undefined behavior is detected, there is a 89\% chance it is not a false positive and the detected construct is actual undefined behavior. The only failed tests failed due to the known flaws  originating in alias analysis giving not enough information.
 
 The tool is currently probably not useful in the upstream due to its two-phase architecture which doesn't allow for transparent compile-time checks in Clang. It can be, however, used as a starting point for further development, particularly its first part which seems to work well.
