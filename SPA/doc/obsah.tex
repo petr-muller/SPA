@@ -23,7 +23,7 @@ Bear in mind that undefined behavior allows \emph{any} behavior. That means not 
 
 %%%%%%%%%%%%
 \section{Side effect}
-ISO C11~\cite{WG14N1570} gives the following definition of a side effect: ``Accessing a volatile object, modifying an object, modifying a file, or calling a function that does any of those operations are all side effects, which are changes in the state of the execution environment. Evaluation of an expression in general includes both value computations and initiation of side effects. Value computation for an lvalue expression includes determining the identity of the designated object.''
+ISO C11~\cite{WG14N1570} gives the following definition of a side effect: ``Accessing a volatile object, modifying an object, modifying a file, or calling a function that does any of those operations are all side effects, which are changes in the state of the execution environment. Evaluation of an expression in general includes both value computations and initiation of side effects. Value computation for an L-value expression includes determining the identity of the designated object.''
 
 Informally said, a side effect is usually modifying a memory during evaluation of an expression. For example \verb|i++| is an expression whose \emph{return value} is the value of \verb|i| before evaluation \emph{and the value of }\verb|i|\emph{ is incremented by 1}~--~this is the side effect. The expression evaluation accesed the memory addressed by \verb|i| and modified its value.
 
@@ -62,42 +62,53 @@ According to ISO C11~\cite{WG14N1570}, undefined behavior occurs when ``a side e
 This kind of undefined behavior appears not to be very dangerous on sight~--~most of the programmers would either expect, e.g., \verb|i = i++;| expression to be well-defined or think the value of \verb|i| would either be \verb|i| or \verb|i+1|.
 However, if you write \verb|i = i++;| in your program and run it, you might get your hard disk erased just as well.
 
-Another reason why this is dangerous is that most of the implementations will behave ``reasonably'' and do one of the things a programmer would expect. It is therefore hard to reveal this kind of errorneous C constructs. Tt might be present in a program for many years until the implementation behavior changes and the program, too, suddenly changes its behavior for no obvious reason.
+Another reason why this is dangerous is that most of the implementations will behave ``reasonably'' and do one of the things a programmer would expect. It is therefore hard to reveal this kind of errorneous C constructs. That might be present in a program for many years until the implementation behavior changes and the program, too, suddenly changes its behavior for no obvious reason.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Examples}
-As described in the previous chapter, it is necessary to avoid having any undefined behavior in one's program. A program with undefined behavior is poorly written and needs to be fixed. Also it is highly questionable whether even a very good programmer can manage to find all of the possible constructs leading to undefined behavior due to sequence point misunderstanding as some of them are very obscure. Most of the people who can code in C have probably never even heard of ``sequence point'' and often (this is our personal observation) do not believe certain construct leads to undefined behavior or are confused and try to guess which is the ``correct'' result.
+As described in the previous chapter, it is necessary to avoid having any undefined behavior in one's program. A program with undefined behavior is poorly written and needs to be fixed. Also it is highly questionable whether even a very good programmer can manage to find all of the possible constructs leading to undefined behavior due to sequence point misunderstanding as some of them are very obscure. Most of the people who can code in C have probably never even heard of ``sequence point'' and often do not believe certain construct leads to undefined behavior or are confused and try to guess which is the ``correct'' result.
 
-In this chapter, we will show some examples of constructs leading to undefined behavior from most basic ones to some more obscure ones.
+\section{Undefined behavior examples}
+In this section, we will show some examples of constructs leading to undefined behavior from most basic ones to some more obscure ones.
+\\
 
-\section{Example 1}\label{example1}
-This is the first example we have shown some people to give an example of what our work is about. Many of them, however, did not even believe this is an undefined behavior, which only shows how dangerous even the most basic case is.
-\\\begin{code}
+\textbf{Example 1} is a code that we have shown some people to give an example of what our work is about. Many of them, however, did not even believe this is an undefined behavior, which only shows how dangerous even the most basic case is.
+\begin{figure}[h!]
+\caption{Example 1}
+\begin{code}
 int main(void){
 	int i = 1;
 	i = i++;
 	return i;
 }
 \end{code}
+\end{figure}
 
 The assignment operator modifies the same memory as the post-increment operator while there is no sequence point between them. Not only does this operation have unspecified results (which most of the people who have seen it for the first time admitted after our explanation) but it leads to undefined behavior rendering the whole program meaningless and dangerous.
+\\
 
-\section{Example 2}\label{example2}
-The second example is almost the same except for one thing: the second operand of the assignment is now accessed via pointer.
-\\\begin{code}
+\textbf{Example 2} is almost the same except for one thing: the second operand of the assignment is now accessed via pointer.
+
+\begin{figure}[h!]
+\caption{Example 2}
+\begin{code}
 int main(){
 	int i = 0;
 	int *j = &i;
 	i = (*j)++;
     return i;
 }
-\end{code}\label{example2}
+\end{code}
+\end{figure}
 
 It is, however, the same undefined behavior as in the previous case because it modifies the same memory more than once within the same sequence point. It is also not so easily observable and one can miss this construct when not looking for it specifically.
+\\
 
-\section{Example 3}\label{example3}
-Another example shows undefine dbehavior when calling a function:
-\\\begin{code}
+\textbf{Example 3} shows undefined  behavior when calling a function:
+
+\begin{figure}[h!]
+\caption{Example 3}
+\begin{code}
 int f(int *a){
     (*a)++;
     return *a;
@@ -113,13 +124,17 @@ int main(){
     i = f(&i) + g(&i);
     return i;
 }
-\end{code}\label{example3}
+\end{code}
+\end{figure}
 
 One problem here is that there is no defined order of evaluation of the addition's operands. Many people would think that the result is just unspecified and will be one of the two values. Another problem, however, is that both of these functions modify the same memory, so this is, again, undefined behavior.
+\\
 
-\section{Example 4}\label{example4}
-This is another example which some of good programmers may miss:
-\\\begin{code}
+\textbf{Example 4} is another undefined behavior case which some of the good programmers may miss:
+
+\begin{figure}[h!]
+\caption{Example 4}
+\begin{code}
 int a(int *a){
     (*a)++;
     return *a;
@@ -141,12 +156,16 @@ int main(void){
     return i;
 }
 \end{code}
+\end{figure}
 
 While the standard states that a \emph{comma operator} is a sequence point, in this case, the comma does not denote an \emph{operator}. The order of evaluation of the function arguments (calling \verb|a| and \verb|b| functions) is undefined and, in this particular case, it leads to undefined behavior as both of the functions have a side effect on the same variable.
+\\
 
-\section{Example 5}\label{example5}
-Here we show the same problem when indexing arrays:
-\\\begin{code}
+\textbf{Example 5} shows the same problem when indexing arrays:
+
+\begin{figure}[h!]
+\caption{Example 5}
+\begin{code}
 int main(void){
     char arr[42];
     int i = 0;
@@ -154,12 +173,16 @@ int main(void){
     return arr[i-1];
 }
 \end{code}
+\end{figure}
 
 This is an example of unsequenced modification \emph{and} read during the same sequence point. Not only don't we know the memory location and the value written, the program has undefined behavior.
+\\
 
-\section{Example 6}\label{example6}
-Usage of macro or other obfuscation can make the undefined behavior even harder to find:
-\\\begin{code}
+\textbf{Example 6} shows how usage of macro or other obfuscation can make the undefined behavior even harder to find:
+
+\begin{figure}[h!]
+\caption{Example 6}
+\begin{code}
 #define MACRO i = (*j)++;
 int main(){
   int i = 0;
@@ -169,27 +192,35 @@ int main(){
 }
 }
 \end{code}
+\end{figure}
 
-This is the same as Example 2~\ref{example2}, only with a simple macro used. It makes the undefined behavior harder to observe.
+This is the same as Example 2, only with a simple macro used. It makes the undefined behavior harder to observe.
+\\
 
-\section{Example 7}\label{example7}
-The last example shows an obvious case of undefined behavior where a programmer who is not aware of sequence point problematic would not expect any problem as the result seems to be the same regardless of the evaluation order.
-\\\begin{code}
+\textbf{Example 7} demonstrates an obvious case of undefined behavior where a programmer who is not aware of sequence point problematic would not expect any problem as the result seems to be the same regardless of the evaluation order.
+
+\begin{figure}[h!]
+\caption{Example 7}
+\begin{code}
 int main(void){
     int j;
     int i = 0;
     j = i++ + ++i;
 }
 \end{code}
+\end{figure}
 
 The difference between postfix and prefix incrementation is that, while they both increment the variable value, the postfix one returns the original value of the variable and the prefix one returns the incremented value. Many people would probably guess that no matter in which order the expression is evaluated, it will return the same value. Saying that would be the same mistake as we have shown in some of the previous examples as this expression modifies the same memory more than once within the same sequence point.
 
-\section{Summary}
+\section{Positive examples}
 These are all examples of \emph{undefined behavior} where the implementation is not required to do anything particular. This is due to unsequenced modifications (or modifications and access) of the same memory location within one sequence point. We will now show some ``positive'' examples of programs \emph{without} any unspecified results or undefined behavior.
+\\
 
-\section{Positive example 1}
-While this code looks suspicious, it is perfectly fine:
-\\\begin{code}
+\textbf{Positive example 1} is a code that, while it might look suspicious, is perfectly fine:
+
+\begin{figure}[h!]
+\caption{Positive example 1}
+\begin{code}
 int main(void){
     int i = 42;
     int j;
@@ -197,12 +228,16 @@ int main(void){
     return j;
 }
 \end{code}
+\end{figure}
 
 This is correct because a \emph{comma operator} is a sequence point.
+\\
 
-\section{Positive example 2}
-Another example of correct code.
-\\\begin{code}
+\textbf{Positive example 2} is another example of correct code.
+
+\begin{figure}[h!]
+\caption{Positive example 2}
+\begin{code}
 int main(void){
     int i = 42;
     int j, k;
@@ -210,18 +245,23 @@ int main(void){
     return k;
 }
 \end{code}
+\end{figure}
 
 The return value of \verb|i++| is used in an assignment, but in another object.
+\\
 
-\section{Positive example 3}
-An example of code which might look suspicious for a person over-concerned with the sequence point problem.
-\\\begin{code}
+\textbf{Positive example 3} might look suspicious for a person over-concerned with the sequence point problem.
+
+\begin{figure}[h!]
+\caption{Positive example 3}
+\begin{code}
 int main(void){
     int i = 42;
     i = i + 1;
     return i;
 }
 \end{code}
+\end{figure}
 
 While on first sight this looks similar to \verb|i = ++i;|, the \verb|i+1| expression has no side effect on \verb|i| and this code is correct.
 
@@ -246,7 +286,7 @@ As \verb|i| points to the same memory location as \verb|*j|, i.e. if the two var
 
 %%%%%%%%%%%%
 \section{Static analysis}
-As said at the beginning, our goal is implementing a tool that is able to detect undefined behavior \emph{statically}. Static program analysis is analyss of the program without actually executing the program~\cite{static-analysis}. In this case, it will be performed on the C code we want to test and possibly on the object code generated from it. In the following sections, we will focus mainly on static analysis solutions, but we will also mention some other possibilities.
+As said at the beginning, our goal is implementing a tool that is able to detect undefined behavior \emph{statically}. Static program analysis is analysis of the program without actually executing the program~\cite{static-analysis}. In this case, it will be performed on the C code we want to test and possibly on the object code generated from it. In the following sections, we will focus mainly on static analysis solutions, but we will also mention some other possibilities.
 
 %%%%%%%%%%%%
 \section{Existing solutions}\label{test-of-others}
@@ -254,7 +294,7 @@ Currently we know about two existing tools capable of very basic detection of se
 \subsection{GCC}
 GCC's \verb|-Wsequence-point| modifier is able to detect some basic occurrences of side-effect related undefined behavior, but fails in cases as basic as using a function with side effect or side effect on a memory accessed via pointer.
 
-The example output of compilatipon of a Example~\ref{example1} \emph{without} using pointers:
+The example output of compilation of a Example 1, \emph{without} pointers:
 \\\begin{code}
 $ gcc --std=c11 -Wall test1.c
 
@@ -264,12 +304,12 @@ test1.c:3:5: warning: operation on 'i' may be undefined [-Wsequence-point]
     ^
 \end{code}
 
-Example~\ref{example2} \emph{with} pointers doesn't generate any warning. We used GCC version 4.8.2 for this test.
+Example 2 \emph{with} pointers doesn't generate any warning. We used GCC version 4.8.2 for this test.
 
 \subsection{Clang}
 Clang is an alternative to GCC. Its compile-time warnings fail in the same basic cases as GCC. It is specifically designed to be modular, reusable, its source code and API are easily understandable~\cite{ClangComparison}. Clang therefore offers a reasonable environment for further development and will be used for a part of our work.
 
-The example output of compilatipon of a test~\ref{example1} \emph{with} using pointers:
+The example output of compilation of an Example 1, \emph{without} pointers:
 \\\begin{code}
 $ clang --std=c11 -Wall test1.c 
 test1.c:3:8: warning: multiple unsequenced modifications to 'i' [-Wunsequenced]
@@ -278,10 +318,7 @@ test1.c:3:8: warning: multiple unsequenced modifications to 'i' [-Wunsequenced]
 1 warning generated.
 \end{code}
 
-The example output of compilatipon of a test~\ref{example2} \emph{with} using pointers:
-\\\begin{code}
-$ clang --std=c11 -Wall test2.c 
-\end{code}
+Example 2 \emph{with} pointers doesn't generate any warning. We used Clang version 3.5.0 for this test.
 
 \subsection{PVS-Studio, Cppcheck, Astrée, Coverity}
 PVS studio, Cppcheck, Astrée and Coverity are static analyzers. They can find possible errors in source code of various programming languages, all of them including C. While PVS-Studio might be an interesting option, it has the same problems as previously mentioned ones. We didn't find a way to make Cppcheck find sequence-point realted undefined behavior at all. We didn't manage to test Coverity and Astrée. Also, because these programs are meant specifically for static checking, it would be hard to reuse a check in a compiler so that warnings show at compile-time.
@@ -298,7 +335,7 @@ Multiple theoretical works related to this problem exist, none of them, however,
 \end{itemize}
 %%%%%%%%%%%%
 \section{Sequence-point analyzer goal}
-Both Clang and GCC are able to statically detect undefined behavior in Example 1~(\ref{example1}) (\verb|i = i++;|). None of them, however, works e.g. on Example 2~(\ref{example2}) or Example 3~(\ref{example3}) (\verb|i = (*j)++;| and \verb|i = f(&i) + g(&i);|). This is due to lack of alias analysis and not considering functions at all.
+Both Clang and GCC are able to statically detect undefined behavior in Example 1\\ (\texttt{i = i++;}). None of them, however, works e.g. on Example 2 or Example 3 (\texttt{i = (*j)++;} and \texttt{i = f(\&i) + g(\&i);}). This is due to lack of alias analysis and not considering functions at all.
 
 These solutions are not sufficient as they usually only catch undefined behavior in example and test source codes, which is so apparent that most programmers would not do such a mistake. Most of these errors occur while dealing with functions that have side effects, accessing a variable via a pointer, using array indexation etc.
 There are multiple theoretical works regarding this topic, none of them, however, deals satisfyingly with pointers (where alias analysis is needed)~\cite{aliasAnalysis} and functions.
@@ -316,7 +353,7 @@ Clang itself doesn't have a tool for this and doesn't allow us to easily bind so
 \section{High-level architecture}
 For reasons shown in the previous chapter, the SPA will consist of two phases. The first phase is generating a set of constraints under which the behavior is undefined. This part is implemented as a plugin for the Clang compiler. The second phase will check these constraints and produce the final output. This phase is implemented as a Bash script using alias analysis implemented in LLVM.
 
-Provided we have access to the AST, we can detect some \emph{potential} occurrences of undefined behavior. The AST gives us information on variables and operations they are involved in. However, without implementing our own alias analysis, we are not able to determine whether two variables alias or not -- hence ``potential'' undefined behavior. This said, the goal of the first part of our project is to merely generate a set of constraints saying under what conditions the undefined behavior may occur. For our Example 2~\ref{example2}, the goal is to generate a rule saying "On the row 4, there is undefined behavior \emph{if} \verb|*j| aliases with \verb|i|". The exact method of generating these constraints will be shown later. We have necessary access to the AST from the Clang plugin. A Clang plugin is also an option that fully uses Clang's modularity. It can be run at compile-time, can be ommited from running, and is extendable easily as we have access to most of the information Clang can provide.
+Provided we have access to the AST, we can detect some \emph{potential} occurrences of undefined behavior. The AST gives us information on variables and operations they are involved in. However, without implementing our own alias analysis, we are not able to determine whether two variables alias or not -- hence ``potential'' undefined behavior. This said, the goal of the first part of our project is to merely generate a set of constraints saying under what conditions the undefined behavior may occur. For our Example 2, the goal is to generate a rule saying "On the row 4, there is undefined behavior \emph{if} \verb|*j| aliases with \verb|i|". The exact method of generating these constraints will be shown later. We have necessary access to the AST from the Clang plugin. A Clang plugin is also an option that fully uses Clang's modularity. It can be run at compile-time, can be ommited from running, and is extendable easily as we have access to most of the information Clang can provide.
 
 This set of constraints can be checked later on either in LLVM or using some external alias analysis, and a script for that can be considered the second part. This constraint-checking part will be implemented as a bash script, that uses alias analysis in LLVM. The alias analysis implemented in LLVM can be run on the LLVM IR (``intermediate representation'', ``bitcode''). The reason we can not do this directly is that undefined behavior in the C source code is already well-defined after translating to the LLVM IR. We can not find any undefined behavior in LLVM IR as it does not need to correspond to the original C source code at all (and indeed, it does not as LLVM IR is a intermediate representation suitable from multiple programming languages). This means we need to map some parts of the LLVM IR, which the alias analysis will be run on, to the original source code. We will use the debugging information for this purpose.
 
@@ -363,12 +400,12 @@ implied on them and those side effects do not need to be sequenced.
 
 %================================================================================================================
 \section{Generating constraints}
-A Clang plugin has has access to the program's AST. Given this AST, we can find statements (nodes of the AST), where the undefined behavior can (but might not, depending on the results of the alias analysis) occur.
+A Clang plugin has access to the program's AST. Given this AST, we can find statements (nodes of the AST), where the undefined behavior can (but might not, depending on the results of the alias analysis) occur.
 %----------------------------------------------------------------------------------------------------------------
 \subsection{Division into sequence points}
-AST dump of Example 1~(\ref{example1}) provided by Clang is shown on figure \ref{ASTdump}.
+AST dump of Example 1 provided by Clang is shown on figure \ref{ASTdump}.
 \begin{figure}
-\caption{Example 1~(\ref{example1}) AST dump}
+\caption{Example 1 AST dump}
 \label{ASTdump}
 \begin{code}
 TranslationUnitDecl 0x29bdec0 <<invalid sloc>>
@@ -392,7 +429,7 @@ TranslationUnitDecl 0x29bdec0 <<invalid sloc>>
 
 On figure \ref{ASTuntagged} is its graphical representation (after omitting the typedefs from the beginning).
 \begin{figure}
-    \caption{Example 1~(\ref{example1}) AST graphical representation}
+    \caption{Example 1 AST graphical representation}
     \label{ASTuntagged}
     \centering
         \includegraphics[width=1\textwidth]{fig/example1G.pdf}
@@ -406,7 +443,7 @@ There is a special type of node in the AST~--~a reference to variable declaratio
 
 %----------------------------------------------------------------------------------------------------------------
 \subsection{L-value scope}
-Some expressions keep an address of the given operand, meaning it can be used later in some parent node as an lvalue and, e.g., be assigned to. Consider this code:
+Some expressions keep an address of the given operand, meaning it can be used later in some parent node as an L-value and, e.g., be assigned to. Consider this code:
 \\\begin{code}
 int main(void){
     int i = 2;
@@ -423,7 +460,7 @@ In this example, it is the case of \verb|&i|. Some other expressions, however, g
 \subsection{Node tagging}
 From this, we can conclude that every node can be tagged either as "implying a side effect", "not implying anything" or "making side effect impossible" on certain memory place given by certain DeclRefExpr. We can do this for each DeclRefExpr. The picture from the above would then be tagged as shown on figure \ref{ASTtagged}.
 \begin{figure}
-    \caption{Example 1~(\ref{example1}) AST graphical representation~--~tagged}
+    \caption{Example 1 AST graphical representation~--~tagged}
     \label{ASTtagged}
     \centering
         \includegraphics[width=0.6\textwidth]{fig/example1G-tagged.pdf}
@@ -486,7 +523,7 @@ This output can then be used by any external alias analysis.
 
 %================================================================================================================
 \section{Checking the constraints}
-Once the constraints are generated, there are many means of checking them. Any alias analysis may be used and it is the alias analysis used what decides an algorithm used for comparing it with the constraints as the output and information received from the alias analysis may vary for each implementation. We will further describe our actual implementation which is a bash script using a built-in alias analysis of the LLVM. We will use the example \ref{example2} (\verb|i = (*1)++|) for the following examples.
+Once the constraints are generated, there are many means of checking them. Any alias analysis may be used and it is the alias analysis used what decides an algorithm used for comparing it with the constraints as the output and information received from the alias analysis may vary for each implementation. We will further describe our actual implementation which is a bash script using a built-in alias analysis of the LLVM. We will use the Eexample 2 (\verb|i = (*1)++|) for the following examples.
 
 As we said previously, it is necessary to map the LLVM IR to the original source code. This requires two steps~--~translating temporary variable names to those of the original variables and mapping to the original location in the source code. Then, the constraints generated in the previous part can be compared to these translated aliases.
 
@@ -498,7 +535,7 @@ Other implementations' failures were probably caused by the fact that they depen
 
 %----------------------------------------------------------------------------------------------------------------
 \subsection{Output of the alias analysis}
-Figure \ref{alias-output} shows part of the output of alias analysis of the example \ref{example2}. We can easily filter out the non-aliasing variables. Out of possible answers~--~NoAlias, MayAlias, MustAlias~--~the latter two are considered to confirm that an undefined behavior occurs. This may lead to false positives depending on alias analysis used~--~MayAlias is not a definite answer and we simply choose possible false positives over false negatives.
+Figure \ref{alias-output} shows part of the output of alias analysis of the Example 2. We can easily filter out the non-aliasing variables. Out of possible answers~--~NoAlias, MayAlias, MustAlias~--~the latter two are considered to confirm that an undefined behavior occurs. This may lead to false positives depending on alias analysis used~--~MayAlias is not a definite answer and we simply choose possible false positives over false negatives.
 
 We see there are many temporary variables (the numbered ones) and not the original names of the variables. In order to match these temporary variables to real variable names, we need the LLVM IR of the original program.
 
@@ -626,7 +663,7 @@ The documentation source files in latex are in a \verb|SPA/doc| folder, the inst
 \begin{figure}
 \caption{Full debug output}
 \label{debug}
-\begin{code}
+\begin{code}[\scriptsize]
 $ ./debugrun.sh SPA/examples/test1A.c
 LLVM IR:
 define i32 @main() #0 {
@@ -689,20 +726,22 @@ As to including the whole SPA to upstream, there is generally one issue that mak
 Potential further development, other than debugging, is thus making the whole tool invokable just as a Clang plugin.
 %================================================================================================================
 \section{Testing}
-We will test the application using a prepared set of testcases. These can also be effectively used as demonstration of the undefined behavior problem and the principles of the SPA.
-In this section, we will describe testcases and statistically analyze the results.
+We have tested the application using a prepared set of test cases. These can also be effectively used as demonstration of the undefined behavior problem and the principles of the SPA.
+In this section, we will describe test cases and statistically analyze the results.
 %----------------------------------------------------------------------------------------------------------------
-\subsection{Testcases}
-Currently there are 24 tests. Some of them use pointers. Results of some of them are expected to be positive (undefined behavior found), some are expected to be negative. See details in the table:\\
+\subsection{Test cases}
+Currently there are 24 tests. Some of them use pointers. Results of some of them are expected to be positive (undefined behavior found), some are expected to be negative. See details in the table:
 
-\begin{centering}
+\begin{figure}[h!]
+\caption{Test types}
+\centering
 \begin{tabular}{|l|l|l|}
 \hline
                  & Positive & Negative \\\hline
 With pointers    & 7        & 6        \\\hline
 Without pointers & 9        & 2        \\\hline
 \end{tabular}\\
-\end{centering}
+\end{figure}
 
 The tests vary in constructions used, use different data types, statement types and undefined behavior origins. Most of them are in a pointer and non-pointer version. They are part of both the repository and the attached source codes.
 
@@ -711,10 +750,12 @@ Some of these cases are: undefined behavior while indexing arrays, functions, ig
 %----------------------------------------------------------------------------------------------------------------
 \subsection{Test results}
 
-The results are shown in the following table:
+The results are shown in the Figure~\ref{results}
 
-\begin{centering}
-\begin{tabular}{|r|r|}
+\begin{figure}[h!]
+\caption{Test resu\label{results}lts}
+\centering
+\begin{tabular}{|l|r|}
 \hline
 True Positives                         &             16   \\\hline
 True Negatives                         &              6   \\\hline
@@ -728,7 +769,7 @@ Fall-out                               &           25\%   \\\hline
 False discovery rate                   &            11\%   \\\hline\hline
 \textbf{Accuracy}                      &  \textbf{92\%}   \\\hline
 \end{tabular}\\
-\end{centering}
+\end{figure}
 
 As we can see, there were no false negatives, which means that the SPA never ``missed'' an actual undefined behavior. In this test set, we have found two false positives.
 
@@ -743,15 +784,15 @@ After some statistical analysis, we see that, based on this test set, if there i
 
 The overall accuracy of the SPA is 91\% and the only error in the set is caused by the second phase of the SPA.
 
-The run took about 0.04 s on the testing machine (Intel Core i7 @ 2900 Mhz) on Example 2~\ref{example2}. On small files, it is generally fast enough to be used as a part of compilation.
+The run took about 0.04 s on the testing machine (Intel Core i7 @ 2900 Mhz) on Example 2. On small files, it is generally fast enough to be used as a part of compilation.
 
-The tool has also been run on longer source codes such as school projects. The Constraint Generating part runs very fast on programs of almost any size~--~it only takes a few miliseconds. The Constraint Checking part can take very long even on medium-sized files~--~on a relatively small file with 203 constraints generated within 3 functions, it takes several minutes to check them. This is probably due to implementation in Bash and the fact that the output of the alias analysis is not structured very well and needs to be parsed.
+The tool has also been run on longer source codes such as school projects. The Constraint Generating part runs very fast on programs of almost any size~--~it only takes a few milliseconds. The Constraint Checking part can take very long even on medium-sized files~--~on a relatively small file with 203 constraints generated within 3 functions, it takes several minutes to check them. This is probably due to implementation in Bash and the fact that the output of the alias analysis is not structured very well and needs to be parsed.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Conclusion}
-A tool has been implemented that searches for undefined behavior related to side effects and sequence points in the C language programs. The tool, called Sequence Point Analyzer, consists of two parts. The first part generates a list of \emph{possible} undefined behavior occurrences. The second part verifies these constraints and generates the final user-readable output. The first part is implemented as a Clang plugin, the second as a Bash script using alias analysis in LLVM.
+We have implemented a tool that searches for undefined behavior related to side effects and sequence points in the C language programs. The tool, called Sequence Point Analyzer, consists of two parts. The first part generates a list of \emph{possible} undefined behavior occurrences. The second part verifies these constraints and generates the final user-readable output. The first part is implemented as a Clang plugin, the second as a Bash script using alias analysis in LLVM.
 
-Multiple problems arised and have been solved. The Constraint Generating part needed an algorithm for Abstract Syntax Tree traversal. This has been achieved by starting at each DeclRefExpr node and traversing to the root. DeclRefExpr is always a leaf of the AST. We also stated that if a node implies a side effect on certain variable, all its parent nodes have side effect on that same variable, too.
+During designing the tool, we had to solve multiple problems. The Constraint Generating part needed an algorithm for Abstract Syntax Tree traversal. This has been achieved by starting at each DeclRefExpr node and traversing to the root. DeclRefExpr is always a leaf of the AST. We also stated that if a node implies a side effect on certain variable, all its parent nodes have side effect on that same variable, too.
 
 The Constraint Checking part had to solve problems of mapping the LLVM IR to the original source code. This was necessary because a construct leading to undefined behavior in C is well-defined after translation to the LLVM IR. We therefore need to get the original names of temporary variables and the original location of the statement with undefined behavior. This was achieved by parsing certain parts of the LLVM IR and using the debugging information.
 
