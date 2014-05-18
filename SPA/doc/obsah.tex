@@ -273,7 +273,10 @@ As we described in the previous chapter, sequence-point related undefined behavi
 \section{Aliasing}
 The mentioned trivial case \verb|i = i++;| is relatively easy to detect and many compilers are able to detect it.
 We can determine it leads certainly to undefined behavior. But this decision is much more complicated when we consider using pointers as in this simple case:
-\\\begin{code}
+
+\begin{figure}[h!]
+\caption{Aliasing problem example}
+\begin{code}
 int main(){
 	int i = 0;
 	int *j = &i;
@@ -281,6 +284,7 @@ int main(){
     return i;
 }
 \end{code}
+\end{figure}
 
 As \verb|i| points to the same memory location as \verb|*j|, i.e. if the two variables \emph{alias}, the example still leads to the undefined behavior. Otherwise, however, it would not, because there would not be more than one memory modification \emph{to the same memory location}. Therefore we need to be able to determine whether the two variables alias in order to detect undefined behavior considering the use of pointers.
 
@@ -443,16 +447,19 @@ There is a special type of node in the AST~--~a reference to variable declaratio
 
 %----------------------------------------------------------------------------------------------------------------
 \subsection{L-value scope}
-Some expressions keep an address of the given operand, meaning it can be used later in some parent node as an L-value and, e.g., be assigned to. Consider this code:
-\\\begin{code}
+Some expressions keep an address of the given operand, meaning it can be used later in some parent node as an L-value and, e.g., be assigned to. Consider the code in Figure \ref{lvalue-ternary}.
+
+\begin{figure}[h!]
+\caption{Example of limited L-value scope}\label{lvalue-ternary}
+\begin{code}
 int main(void){
     int i = 2;
     int a = 3;
     *(a==3?&i:&i) = 42;
     return i;
 }
-
 \end{code}
+\end{figure}
 
 In this example, it is the case of \verb|&i|. Some other expressions, however, get rid of the operand address irreversibly and we can be sure it will never be used as an L-value until its next occurrence. An example of this is the \verb|a| variable in the conditional operator from the code above: it can never more be used as an L-value in the whole subtree with the assignment it appears in as the conditional operator just uses it and throws it away.
 
@@ -469,6 +476,7 @@ From this, we can conclude that every node can be tagged either as "implying a s
 We began tagging from the left DeclRefExpr. It surely can be used as an L-value but the expression itself implies no side effect, hence the tag in italic ("not implying anything"). We went towards the root and as we passed the \verb|BinaryExpression (=)|, we mark it as an expression implying a side effect on \verb|i| (tag in bold) as it modifies the memory contents of \verb|i|. We continued to the top implicitly marking all the parent nodes as having a side effect on \verb|i|. Then we can do the same for the right DeclRefExpr and as we see two tags in bold of the same variable, we can say we found an undefined behavior.
 
 This method can also be described by the following algorithm:
+\\
 
 \noindent\fbox{%
 \begin{varwidth}{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}
