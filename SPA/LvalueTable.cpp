@@ -106,6 +106,11 @@ std::string LvalueTable::makeConstraints(){
         case clang::Stmt::CompoundStmtClass: // {}
         case clang::Stmt::ParenExprClass: // ()
         case clang::Stmt::ConditionalOperatorClass: // ? :
+        case clang::Stmt::IfStmtClass:
+        case clang::Stmt::CaseStmtClass:
+        case clang::Stmt::WhileStmtClass:
+        case clang::Stmt::DoStmtClass:
+        case clang::Stmt::ForStmtClass:
         noConstraint: // && ||
         break;
 
