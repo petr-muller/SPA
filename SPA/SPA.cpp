@@ -130,6 +130,9 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
                 return Use;
             break;
             case Stmt::ForStmtClass:
+            case Stmt::CaseStmtClass:
+            case Stmt::InitListExprClass:
+            case Stmt::UnaryExprOrTypeTraitExprClass:
             case Stmt::IfStmtClass:
             case Stmt::WhileStmtClass:
             case Stmt::SwitchStmtClass:
