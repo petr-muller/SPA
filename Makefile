@@ -18,11 +18,11 @@ llvm/tools/clang/tools/SPA: llvm SPA
 	cp SPA/top-level-makefile/Makefile llvm/tools/clang/tools
 
 llvm:
-	svn co http://llvm.org/svn/llvm-project/llvm/trunk llvm;
+	svn co -q http://llvm.org/svn/llvm-project/llvm/trunk llvm;
 	cd llvm/tools; \
-	svn co http://llvm.org/svn/llvm-project/cfe/trunk clang; \
+	svn co -q http://llvm.org/svn/llvm-project/cfe/trunk clang; \
 	cd ../projects; \
-	svn co http://llvm.org/svn/llvm-project/compiler-rt/trunk compiler-rt ; \
+	svn co -q http://llvm.org/svn/llvm-project/compiler-rt/trunk compiler-rt ; \
 
 .PHONY: clean remove run debugrun
 
