@@ -225,8 +225,8 @@ class SPAConsumer : public clang::ASTConsumer {
 //plugin basic behavior
 class SPAAction : public PluginASTAction{
     protected:
-        ASTConsumer *CreateASTConsumer(CompilerInstance &CI, llvm::StringRef){
-            return new SPAConsumer(CI);
+        std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI, llvm::StringRef){
+            return std::unique_ptr<clang::ASTConsumer>(new SPAConsumer(CI));
         }
 
         bool ParseArgs(const CompilerInstance &CI, const std::vector<std::string>& args){
