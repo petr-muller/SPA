@@ -76,6 +76,11 @@ file=${file%.*}
 #make constraints
 constraints=$(build/Release+Asserts/bin/clang -c -std=c11 -Wall -W -pedantic -g -Xclang -load -Xclang build/Release+Asserts/lib/libSPA.so -Xclang -add-plugin -Xclang SPA ${file}.c -o TEST)
 
+if [[ ! -z $2 && "$2" = "constraints" ]] ; then
+  echo "$constraints";
+  exit 0;
+fi
+
 #create the LLVM IR
 build/Release+Asserts/bin/clang -c -g3 -gcolumn-info -emit-llvm -c -o ${file}.bc ${file}.c -O0 2>/dev/null
 
