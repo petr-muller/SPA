@@ -60,6 +60,7 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
                 lvalueTable.set(this->currentFunDecl, parent,static_cast<DeclRefExpr*>(S),true,this->lvaluelvl, childIndex);
                 return SideEffect;
             }
+            Stmt::child_iterator index_iterator = parent->child_begin(); std::advance(index_iterator,1);
             switch(parent->getStmtClass()){
             case Stmt::DeclRefExprClass:
                 lvalueTable.set(this->currentFunDecl, parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl, childIndex);
@@ -127,7 +128,7 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
                 return Use;
             break;
             case Stmt::ArraySubscriptExprClass:
-                indexAsString << "[" << this->CI.getSourceManager().getExpansionLineNumber(S->getLocStart()) << "," << this->CI.getSourceManager().getExpansionColumnNumber(S->getLocStart()) << "]";
+                indexAsString << "[" << this->CI.getSourceManager().getExpansionLineNumber((*index_iterator)->getLocStart()) << "," << this->CI.getSourceManager().getExpansionColumnNumber((*index_iterator)->getLocStart()) << "]";
                 std::cout << "index: " << indexAsString.str() << std::endl;
                 lvalueTable.set(this->currentFunDecl, parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl, childIndex);
                 /*if(tmp != *(parent->child_begin())){ // FIXME: this might make sense for subscription as the value actually is dereferrenced, but it is also read and the * makes things harder (this is addressing the case arr[i] for i as it can be vice versa)
