@@ -20,6 +20,7 @@
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/Frontend/CodeGenOptions.h"
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <fstream>
 #include <iterator>
@@ -33,9 +34,12 @@ namespace {
 
 using namespace clang;
 
+std::stringstream indexAsString;
+
 //visitor
 class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
     private:
+        CompilerInstance &CI;
         enum lvalueResult {None, Use, SideEffect};
         int lvaluelvl;
         DiagnosticsEngine &DE;
@@ -123,6 +127,8 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
                 return Use;
             break;
             case Stmt::ArraySubscriptExprClass:
+                indexAsString << "[" << this->CI.getSourceManager().getExpansionLineNumber(S->getLocStart()) << "," << this->CI.getSourceManager().getExpansionColumnNumber(S->getLocStart()) << "]";
+                std::cout << "index: " << indexAsString.str() << std::endl;
                 lvalueTable.set(this->currentFunDecl, parent,static_cast<DeclRefExpr*>(S),false,this->lvaluelvl, childIndex);
                 /*if(tmp != *(parent->child_begin())){ // FIXME: this might make sense for subscription as the value actually is dereferrenced, but it is also read and the * makes things harder (this is addressing the case arr[i] for i as it can be vice versa)
                     this->lvaluelvl--;
@@ -156,7 +162,7 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
         }
 
     public:
-        SPAVisitor(CompilerInstance &CI, LvalueTable &lvalueTable) : lvaluelvl(0), DE(CI.getDiagnostics()), lvalueTable(lvalueTable), parentMap(0), updateParentMap(false)/*, parentMap(static_cast<Decl*>(CI.getASTContext().getTranslationUnitDecl()))*/{
+        SPAVisitor(CompilerInstance &CI, LvalueTable &lvalueTable) : CI(CI), lvaluelvl(0), DE(CI.getDiagnostics()), lvalueTable(lvalueTable), parentMap(0), updateParentMap(false)/*, parentMap(static_cast<Decl*>(CI.getASTContext().getTranslationUnitDecl()))*/{
             this->SPA_fallback = DE.getCustomDiagID(DiagnosticsEngine::Warning, "SPA: fallback action while processing a node of unknown type '%0'");
         }
         ~SPAVisitor(){
@@ -177,6 +183,8 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
             if(S->getStmtClass() == Stmt::DeclRefExprClass){
                 //DEBUG("DeclRefExpr: " << static_cast<DeclRefExpr*>(S)->getDecl()->getNameAsString());
                 this->lvaluelvl = 0;
+                indexAsString.str("");
+                indexAsString.clear();
                 Stmt *parent = S;
                 Stmt *tmp = S;
                 enum lvalueResult sideEffect = None;
