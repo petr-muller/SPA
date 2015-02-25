@@ -49,6 +49,8 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
         LvalueTable &lvalueTable;
         ParentMap *parentMap;
         bool updateParentMap;
+        const char *index;
+        unsigned indexIndex;
         enum lvalueResult resolveLvalue(Stmt *tmp, Stmt *parent, DeclRefExpr *S, enum lvalueResult sideEffect){
             int childIndex = 0;
             Stmt::child_iterator child = parent->child_begin();
@@ -128,7 +130,14 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
                 return Use;
             break;
             case Stmt::ArraySubscriptExprClass:
-                indexAsString << "[" << this->CI.getSourceManager().getExpansionLineNumber((*index_iterator)->getLocStart()) << "," << this->CI.getSourceManager().getExpansionColumnNumber((*index_iterator)->getLocStart()) << "]";
+                //indexAsString << "[" << this->CI.getSourceManager().getExpansionLineNumber((*index_iterator)->getLocStart()) << "," << this->CI.getSourceManager().getExpansionColumnNumber((*index_iterator)->getLocStart()) << "]";
+                indexAsString << "[";
+                index = this->CI.getSourceManager().getCharacterData((*index_iterator)->getLocStart());
+                indexIndex = 0;
+                while(index[indexIndex]!=']'){
+                  indexAsString << index[indexIndex++];
+                }
+                indexAsString << "]";
                 std::cout << "index: " << indexAsString.str() << std::endl;
                 lvalueTable.set(this->currentFunDecl, parent, indexAsString.str(), static_cast<DeclRefExpr*>(S),false,this->lvaluelvl, childIndex);
                 /*if(tmp != *(parent->child_begin())){ // FIXME: this might make sense for subscription as the value actually is dereferrenced, but it is also read and the * makes things harder (this is addressing the case arr[i] for i as it can be vice versa)
