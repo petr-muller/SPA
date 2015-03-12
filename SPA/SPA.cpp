@@ -26,6 +26,7 @@
 #include <iterator>
 
 #include "LvalueTable.cpp"
+#include "ConditionalAdd.h"
 
 #define FILENAME "SPA_constraints.txt"
 
