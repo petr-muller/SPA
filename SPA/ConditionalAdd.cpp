@@ -20,10 +20,16 @@ class FunctionConditionalAdd{
     void addFunctionToAdd(clang::NamedDecl function);
 };
 
-class ContitionalAdd{
+class ConditionalAdd{
   private:
     std::vector<FunctionConditionalAdd> funcAdds;
   public:
-    void addConditionalConstraint(clang::NamedDecl funDecl, clang::NamedDecl constraintFunDecl); // (function to add constraints to, function side effects of which will be added)
+    void addConditionalConstraint(clang::NamedDecl funDecl, clang::NamedDecl constraintFunDecl, int argIndex, clang::NamedDecl varDecl); // (function to add constraints to, function side effects of which will be added)
     void execute(); // iteratively (over i and over functions) add constraints as long as they change
 };
+
+////////////////////////////////////////////////////////////
+
+void ConditionalAdd::addConditionalConstraint(clang::NamedDecl funDecl, clang::NamedDecl constraintFunDecl, int argIndex, clang::NamedDecl varDecl){
+  std::cout << funDecl.getNameAsString() << " gets side effect to it's " << argIndex << ". argument declared within it as '" << varDecl.getNameAsString() << "' if it has side effect in " << constraintFunDecl.getNameAsString() << " (side effect type will be kept)." << std::endl;
+}
