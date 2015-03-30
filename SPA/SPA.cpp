@@ -26,6 +26,7 @@
 #include <iterator>
 
 #include "LvalueTable.cpp"
+#include "ConditionalAdd.cpp"
 
 #define FILENAME "SPA_constraints.txt"
 
@@ -47,6 +48,7 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
         unsigned FILE_error;
         NamedDecl *currentFunDecl;
         LvalueTable &lvalueTable;
+        ConditionalAdd &conditionalAdd;
         ParentMap *parentMap;
         bool updateParentMap;
         const char *index;
@@ -73,10 +75,14 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
                 return Use;
             break;
             case Stmt::CallExprClass: // function implicitly has side effect on everything it can
-                if(/*this->lvaluelvl > 0 && */tmp != *(parent->child_begin())){ //FIXME: int i; int j = &i; works for f(&j) but not for f(j) (which should tag side effect for i)
-                    this->lvaluelvl--;
-                    lvalueTable.set(this->currentFunDecl, parent, indexAsString.str(), static_cast<DeclRefExpr*>(S),true,this->lvaluelvl, childIndex);
-                    return SideEffect;
+                // TODO: add x-th argument of the function if it has side effect in the function called (so i need to know argument number and function called)
+                //if(/*this->lvaluelvl > 0 && */tmp != *(parent->child_begin())){ //FIXME: int i; int j = &i; works for f(&j) but not for f(j) (which should tag side effect for i)
+                //    this->lvaluelvl--;
+                //    lvalueTable.set(this->currentFunDecl, parent, indexAsString.str(), static_cast<DeclRefExpr*>(S),true,this->lvaluelvl, childIndex);
+                //    return SideEffect;
+                //}
+                if(childIndex!=0 && this->lvaluelvl > 0){ // this is not a declaration of the function called
+                  conditionalAdd.addConditionalConstraint(*(this->currentFunDecl), static_cast<NamedDecl>(*(static_cast<DeclRefExpr*>(*&*(parent->child_begin()->child_begin()))->getDecl())), childIndex, static_cast<NamedDecl>(*(S->getDecl())));
                 }
                 this->lvaluelvl--;
                 return None;
@@ -172,7 +178,7 @@ class SPAVisitor : public RecursiveASTVisitor<SPAVisitor> {
         }
 
     public:
-        SPAVisitor(CompilerInstance &CI, LvalueTable &lvalueTable) : CI(CI), lvaluelvl(0), DE(CI.getDiagnostics()), lvalueTable(lvalueTable), parentMap(0), updateParentMap(false)/*, parentMap(static_cast<Decl*>(CI.getASTContext().getTranslationUnitDecl()))*/{
+        SPAVisitor(CompilerInstance &CI, LvalueTable &lvalueTable, ConditionalAdd &conditionalAdd) : CI(CI), lvaluelvl(0), DE(CI.getDiagnostics()), lvalueTable(lvalueTable), conditionalAdd(conditionalAdd), parentMap(0), updateParentMap(false)/*, parentMap(static_cast<Decl*>(CI.getASTContext().getTranslationUnitDecl()))*/{
             this->SPA_fallback = DE.getCustomDiagID(DiagnosticsEngine::Warning, "SPA: fallback action while processing a node of unknown type '%0'");
         }
         ~SPAVisitor(){
@@ -225,10 +231,11 @@ class SPAConsumer : public clang::ASTConsumer {
     private:
         //A RecursiveASTVisitor implementation.
         LvalueTable lvalueTable;
+        ConditionalAdd conditionalAdd;
         SPAVisitor Visitor;
 
     public:
-        SPAConsumer(CompilerInstance &CI): lvalueTable(LvalueTable(CI)) , Visitor(SPAVisitor(CI, lvalueTable)){}
+        SPAConsumer(CompilerInstance &CI): lvalueTable(LvalueTable(CI)) , conditionalAdd(ConditionalAdd()) , Visitor(SPAVisitor(CI, lvalueTable, conditionalAdd)){}
 
         virtual void HandleTranslationUnit(clang::ASTContext &Context){
             //Visit all nodes in the AST

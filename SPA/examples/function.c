@@ -1,9 +1,9 @@
-int f(int *p){
+int f(int *p, int *q){
   (*p)++;
-  return *p;
+  return 42;
 }
 
 int main(void){
   int a = 0;
-  a = f(&a);
+  a = f(&a,&a);
 }
